@@ -36,6 +36,13 @@
       "adjudication": "microcosm#796",
       "approved_on": "2026-08-30",
       "expires_on": "2026-09-30"
+    },
+    "hmrc/state_pension_income_band_50_000_to_70_000@2025": {
+      "reason": "Same solver-pressure marginal class as its private_pension_income_count sibling: +24.25% on v13/spine-j (inside the bound), +25.50% on v14/spine-k after the re-locked environment re-realized the QRF draws — 0.5pp over. Driven by the same unreachable UC with-children cells pushing weight into pension-income bands; expected to relax with the #145 re-draw fix. Deferred one month with the rest of the set.",
+      "approved_by": "juaristi22",
+      "adjudication": "microcosm#796",
+      "approved_on": "2026-08-30",
+      "expires_on": "2026-09-30"
     }
   }
 }

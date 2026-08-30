@@ -389,6 +389,7 @@ def test_committed_target_fit_register_carries_the_signed_deferrals() -> None:
         "dwp.uc.households_children_2@2025",
         "dwp.uc.households_children_5_or_more@2025",
         "hmrc/private_pension_income_count_income_band_100_000_to_150_000@2025",
+        "hmrc/state_pension_income_band_50_000_to_70_000@2025",
     }
     for record in register.values():
         assert record.approved_by == "juaristi22"
