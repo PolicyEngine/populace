@@ -56,6 +56,7 @@ from microcosm.build.uk_runtime.national_frame import (
     uk_household_weight_kind,
     write_uk_national_frame,
 )
+from microcosm.build.uk_runtime.weighted_integrity import exclusion_evaluation_date
 from microcosm.calibrate import TargetRegistry
 from microcosm.frame import Frame
 
@@ -620,6 +621,9 @@ def _run_calibration_gate_battery(
             }
         ),
         "aggregate_admin": admin_totals,
+        # The target-fit deferral register carries dated approval windows;
+        # the seam evaluates them on the same clock the certification uses.
+        "exclusions_evaluated_on": exclusion_evaluation_date(None),
     }
     battery = GateBatteryRun(
         manifest,

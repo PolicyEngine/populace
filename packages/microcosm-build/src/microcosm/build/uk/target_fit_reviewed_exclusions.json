@@ -1,0 +1,41 @@
+{
+  "schema_version": 2,
+  "description": "Reviewed target-fit exclusions for the UK terminal battery (schema 2 per #610). Each entry defers one calibration target whose |relative error| breaches the 25% release bound, with the defect diagnosed, tracked, and owned elsewhere; the receipt records the reasoning, approver, adjudication reference, approval date, and expiry. The gate keeps the target BOUND in calibration (exclusion applies to the release fence only, never the solve), reports dormant entries, FAILS stale ones (targets back inside the bound), and FAILS expired ones until the adjudication is renewed, so this register cannot rot.",
+  "exclusions": {
+    "dwp.uc.households_single_with_children@2025": {
+      "reason": "UC with-children support residual, not a fit defect: initial eligible support runs 4.24m benunits vs 6.76m DWP admin after the #750 pension-wealth split, the #813 re-bind proved this cell's grain honest (family-type cells partition dwp.uc.households exactly), and the 0.55/0.70/0.85 take-up probes proved marginal claimants ~10:1 childless, so no calibration-side lever reaches it. Root cause evidenced by the donor-truth benchmark on #809: the wealth re-draw over-spreads countable capital >16k to a 38.3% household share vs the WAS donor's 28.6%, suppressing eligibility; the fix is the #145 draw-quality workstream. Deferred one month to unblock the first certified cut.",
+      "approved_by": "juaristi22",
+      "adjudication": "microcosm#796",
+      "approved_on": "2026-08-30",
+      "expires_on": "2026-09-30"
+    },
+    "dwp.uc.households_children_1@2025": {
+      "reason": "Same UC with-children support residual as dwp.uc.households_single_with_children@2025: honest grain after the #813 re-bind, unreachable by take-up (probes 0.55/0.70/0.85), caused by the wealth re-draw over-spread past the 16k countable-capital threshold (spine 38.3% vs WAS donor 28.6%, #809 receipts); owned by #145. Deferred one month to unblock the first certified cut.",
+      "approved_by": "juaristi22",
+      "adjudication": "microcosm#796",
+      "approved_on": "2026-08-30",
+      "expires_on": "2026-09-30"
+    },
+    "dwp.uc.households_children_2@2025": {
+      "reason": "Same UC with-children support residual as dwp.uc.households_single_with_children@2025: honest grain after the #813 re-bind, unreachable by take-up (probes 0.55/0.70/0.85), caused by the wealth re-draw over-spread past the 16k countable-capital threshold (spine 38.3% vs WAS donor 28.6%, #809 receipts); owned by #145. Deferred one month to unblock the first certified cut.",
+      "approved_by": "juaristi22",
+      "adjudication": "microcosm#796",
+      "approved_on": "2026-08-30",
+      "expires_on": "2026-09-30"
+    },
+    "dwp.uc.households_children_5_or_more@2025": {
+      "reason": "Same UC with-children support residual as dwp.uc.households_single_with_children@2025: honest grain after the #813 re-bind, unreachable by take-up (probes 0.55/0.70/0.85), caused by the wealth re-draw over-spread past the 16k countable-capital threshold (spine 38.3% vs WAS donor 28.6%, #809 receipts); owned by #145. Deferred one month to unblock the first certified cut.",
+      "approved_by": "juaristi22",
+      "adjudication": "microcosm#796",
+      "approved_on": "2026-08-30",
+      "expires_on": "2026-09-30"
+    },
+    "hmrc/private_pension_income_count_income_band_100_000_to_150_000@2025": {
+      "reason": "Solver-pressure marginal drift (+25.5% at the v13 seam measurement, 0.5pp over the bound): the unreachable UC with-children cells push weight into this pension-income count band. Expected to relax when the #145 re-draw fix restores the UC gradient; deferred one month alongside the four UC composition cells rather than adjudicated as a standalone defect.",
+      "approved_by": "juaristi22",
+      "adjudication": "microcosm#796",
+      "approved_on": "2026-08-30",
+      "expires_on": "2026-09-30"
+    }
+  }
+}

@@ -223,6 +223,11 @@
       "schema_id": "legacy_json"
     },
     {
+      "path": "target_fit_reviewed_exclusions.json",
+      "kind": "legacy_json",
+      "schema_id": "legacy_json"
+    },
+    {
       "path": "release_input_coverage_manifest.json",
       "kind": "legacy_json",
       "schema_id": "legacy_json"

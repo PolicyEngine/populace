@@ -706,7 +706,8 @@
       "phase": "terminal",
       "criticality": "release_blocking",
       "parameters": {
-        "max_abs_relative_error": 0.25
+        "max_abs_relative_error": 0.25,
+        "reviewed_exclusions_resource": "target_fit_reviewed_exclusions.json"
       },
       "notes": "Every calibration target within twenty-five percent absolute relative error, the certified June acceptance bound."
     },

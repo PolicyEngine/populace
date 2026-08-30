@@ -304,6 +304,12 @@ _UK_TERMINAL_GATE_DETAIL_FIELDS = {
             "targets_checked",
             "max_abs_relative_error",
             "failing_targets",
+            "reviewed_exclusions",
+            "stale_exclusions",
+            "dormant_exclusions",
+            "expired_exclusions",
+            "premature_exclusions",
+            "exclusions_evaluated_on",
         }
     ),
     "aggregate_vs_admin": frozenset({"anchors_checked"}),
@@ -651,10 +657,10 @@ _UK_CERTIFICATION_PART_DIGESTS: Mapping[str, Mapping[str, str]] = {
     },
     "calibration_seam": {
         "gates_manifest_sha256": (
-            "7bc1fab5aa0c035b664684f93195c7f18cb6f48a5ff0e29fbd557bda979ba83b"
+            "cb0d7ce17c0cd3cf70bd432d4ba85efce3fa837ebf3caba5f5cf0b5545c5dc61"
         ),
         "policy_sha256": (
-            "59a5e70053626439a848fd77c58064bf64c62914829667e62ef66a7408dd40f3"
+            "290b1ad240bf4f6412dcaa87c77283dad79d88c817b10b2f402736378fd3d63d"
         ),
     },
     "release_cut": {
