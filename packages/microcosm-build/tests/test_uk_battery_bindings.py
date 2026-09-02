@@ -595,12 +595,13 @@ class TestBatteryRegressions:
         # student-loan enum gate; their evaluators have direct tests. The BRMA
         # enum gate is no longer among them: it moved to the spine battery's
         # assembled boundary, where its column is first written.
-        # 15 before this lane, plus uk_uc_capital_coherence from #829, plus
+        # 15 before this lane, plus uk_uc_capital_coherence from #829 and the
+        # UC-deduction enum gate from #685, plus
         # the two frame-only local weight diagnostics that also pass in this
         # unscoped compatibility probe. The local ladder gate fails because
         # this national fixture deliberately carries no ladder columns; the
         # three evidence-backed local arms are named gaps below.
-        assert len(passed) == 18
+        assert len(passed) == 19
         qrf = by_id["uk_qrf_tail_concentration"]
         assert qrf.status is GateStatus.FAILED
         assert "declared QRF output is absent" in qrf.result.failures[0]

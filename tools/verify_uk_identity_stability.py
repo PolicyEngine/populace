@@ -895,11 +895,149 @@ def e8_identity_receipt(
     }
 
 
+def e9_identity_receipt(
+    frame,
+    *,
+    permutation_seed: int,
+) -> dict[str, object]:
+    """Recompute the E9 UC deduction attributes in original and permuted order.
+
+    The four benunit columns are pure functions of ``benunit_id`` and the
+    household region under the committed resource, so they are re-derived
+    here in full and compared with the stored artifact. The stage runs
+    before CGT cloning and band-donor stacking, which copy the completed
+    columns onto re-keyed rows; those rows are excluded and their count is
+    reported, since their ids are not the ids the stage drew on.
+    """
+
+    from microcosm.build.uk_runtime.cgt_structure import (
+        HOUSEHOLD_IS_CGT_BAND_DONOR,
+        HOUSEHOLD_IS_CGT_CLONE,
+    )
+    from microcosm.build.uk_runtime.uc_deduction_attributes import (
+        UC_DEDUCTION_OUTPUT_COLUMNS,
+        UK_UC_DEDUCTION_ATTRIBUTES_DECLARED_SEEDS,
+        _banded_rate_mapping,
+        _identity_float32_uniforms,
+        load_uc_deduction_distributions,
+        map_uniform_to_categorical,
+        validate_uc_deduction_resource,
+    )
+
+    resource = load_uc_deduction_distributions()
+    validate_uc_deduction_resource(resource)
+    person = frame.table("person")
+    benunit = frame.table("benunit")
+    household = frame.table("household")
+    copied_flags = [
+        column
+        for column in (HOUSEHOLD_IS_CGT_CLONE, HOUSEHOLD_IS_CGT_BAND_DONOR)
+        if column in household.columns
+    ]
+    copied_households = (
+        household[copied_flags].astype(bool).any(axis=1)
+        if copied_flags
+        else pd.Series(False, index=household.index)
+    )
+    copied_ids = set(household.loc[copied_households, "household_id"])
+    benunit_household = person.drop_duplicates("person_benunit_id").set_index(
+        "person_benunit_id"
+    )["person_household_id"]
+    benunit_scope = ~benunit["benunit_id"].map(benunit_household).isin(copied_ids)
+    scoped = benunit.loc[benunit_scope.to_numpy()].reset_index(drop=True)
+    region_by_household = household.set_index("household_id")["region"]
+
+    def recompute(benunit_t: pd.DataFrame) -> pd.DataFrame:
+        ids = benunit_t["benunit_id"].to_numpy()
+        regions = (
+            benunit_t["benunit_id"]
+            .map(benunit_household)
+            .map(region_by_household)
+            .map(_enum_name)
+            .to_numpy(dtype=object)
+        )
+        u = _identity_float32_uniforms(
+            ids,
+            seed=UK_UC_DEDUCTION_ATTRIBUTES_DECLARED_SEEDS["uc_deduction_random_draw"],
+            salt="uc_deduction_random_draw",
+        )
+        v = _identity_float32_uniforms(
+            ids,
+            seed=UK_UC_DEDUCTION_ATTRIBUTES_DECLARED_SEEDS[
+                "uc_deduction_type_random_draw"
+            ],
+            salt="uc_deduction_type_random_draw",
+        )
+        mapping = _banded_rate_mapping(u, regions, resource)
+        combination = map_uniform_to_categorical(
+            v, gate=mapping.rates > 0.0, resource=resource
+        )
+        return pd.DataFrame(
+            {
+                "uc_deduction_random_draw": u,
+                "uc_deduction_type_random_draw": v,
+                "uc_latent_deduction_rate": mapping.rates,
+                "uc_deduction_combination": combination.astype(str),
+            },
+            index=ids,
+        )
+
+    original = recompute(scoped)
+    rng = np.random.default_rng(permutation_seed)
+    permuted = recompute(
+        scoped.iloc[rng.permutation(len(scoped))].reset_index(drop=True)
+    )
+    stored = benunit.set_index("benunit_id")
+    permutation_mismatches: list[str] = []
+    stored_mismatches: list[str] = []
+    stored_columns_missing: list[str] = []
+    for column in UC_DEDUCTION_OUTPUT_COLUMNS:
+        left = original[column]
+        right = permuted[column].reindex(left.index)
+        if not np.array_equal(left.to_numpy(), right.to_numpy()):
+            permutation_mismatches.append(column)
+        if column not in stored.columns:
+            stored_columns_missing.append(column)
+            continue
+        kept = stored[column].reindex(left.index)
+        if column == "uc_deduction_combination":
+            equal = np.array_equal(
+                left.to_numpy().astype(str), kept.map(_enum_name).to_numpy().astype(str)
+            )
+        else:
+            equal = np.array_equal(left.to_numpy(), kept.to_numpy(dtype=float))
+        if not equal:
+            stored_mismatches.append(column)
+    return {
+        "check": "uk_e9_identity_stability",
+        "permutation_seed": permutation_seed,
+        "identical_under_permutation": not permutation_mismatches,
+        "matches_stored_columns": not stored_mismatches and not stored_columns_missing,
+        "permutation_mismatches": {"benunit": permutation_mismatches}
+        if permutation_mismatches
+        else {},
+        "stored_mismatches": {"benunit": stored_mismatches}
+        if stored_mismatches
+        else {},
+        "stored_columns_missing": {"benunit": stored_columns_missing}
+        if stored_columns_missing
+        else {},
+        "columns_by_entity": {"benunit": list(UC_DEDUCTION_OUTPUT_COLUMNS)},
+        "benunits_recomputed": int(len(scoped)),
+        "benunits_excluded_as_copies": int(len(benunit) - len(scoped)),
+        "entity_row_counts": {
+            entity: int(len(frame.table(entity))) for entity in frame.entities
+        },
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input-h5", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--check", choices=("e4", "e5", "e6", "e7", "e8"), default="e4")
+    parser.add_argument(
+        "--check", choices=("e4", "e5", "e6", "e7", "e8", "e9"), default="e4"
+    )
     parser.add_argument("--permutation-seed", type=int, default=123)
     args = parser.parse_args()
 
@@ -953,6 +1091,16 @@ def main() -> int:
         )
     elif args.check == "e6":
         receipt = e6_identity_receipt(
+            frame,
+            permutation_seed=args.permutation_seed,
+        )
+        ok = bool(
+            receipt["identical_under_permutation"] and receipt["matches_stored_columns"]
+        )
+    elif args.check == "e9":
+        # E9 drew on every benunit present after the SPI stack and before CGT
+        # cloning; the block excludes the cloned and band-donor copies itself.
+        receipt = e9_identity_receipt(
             frame,
             permutation_seed=args.permutation_seed,
         )

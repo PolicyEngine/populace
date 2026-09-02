@@ -389,3 +389,76 @@ def test_support_clip_gate_fails_closed_on_a_missing_allowance() -> None:
     assert not _passed(result)
     assert any("no clipped_low_rows allowance" in f for f in result.failures)
     assert any("no clipped_high_rows allowance" in f for f in result.failures)
+
+
+def _latent_receipt() -> dict:
+    row = {"target": 0.5, "realized": 0.51, "tolerance": 0.05, "rows": 1000}
+    return {
+        "stage": "uc_deduction_attributes",
+        "coherence_violation_count": 0,
+        "incidence_by_region": {"LONDON": dict(row)},
+        "latent_rate_bands": {"AT_25": dict(row)},
+        "combination_shares": {"ADVANCE_ONLY": dict(row)},
+    }
+
+
+def _latent_gate(evidence: dict):
+    return uk_stage_health_gate(
+        evidence=evidence,
+        stage="uc_deduction_attributes",
+        check="latent_attribute_realization",
+        parameters={
+            "stage": "uc_deduction_attributes",
+            "check": "latent_attribute_realization",
+        },
+    )
+
+
+def test_latent_attribute_realization_passes_a_coherent_in_band_receipt() -> None:
+    result = _latent_gate(_latent_receipt())
+
+    assert _passed(result)
+    assert result.details["cells_checked"] == 3
+    assert result.details["coherence_violation_count"] == 0
+
+
+def test_latent_attribute_realization_fails_on_coherence_violations() -> None:
+    evidence = _latent_receipt()
+    evidence["coherence_violation_count"] = 2
+
+    assert not _latent_gate(evidence).passed
+
+
+def test_latent_attribute_realization_fails_when_the_count_is_missing() -> None:
+    evidence = _latent_receipt()
+    del evidence["coherence_violation_count"]
+
+    assert not _latent_gate(evidence).passed
+
+
+def test_latent_attribute_realization_fails_beyond_the_declared_tolerance() -> None:
+    evidence = _latent_receipt()
+    evidence["latent_rate_bands"]["AT_25"]["realized"] = 0.56
+
+    assert not _latent_gate(evidence).passed
+
+
+def test_latent_attribute_realization_caps_a_widened_producer_tolerance() -> None:
+    # 1,000 rows at a 0.5 share give a three-sigma band of ~0.047; a producer
+    # that declares 1.0 must not widen the pass rule.
+    evidence = _latent_receipt()
+    evidence["incidence_by_region"]["LONDON"].update(
+        {"tolerance": 1.0, "realized": 0.6}
+    )
+
+    assert not _latent_gate(evidence).passed
+
+
+def test_latent_attribute_realization_fails_on_empty_blocks_and_zero_rows() -> None:
+    empty = _latent_receipt()
+    empty["combination_shares"] = {}
+    assert not _latent_gate(empty).passed
+
+    zero_rows = _latent_receipt()
+    zero_rows["incidence_by_region"]["LONDON"]["rows"] = 0
+    assert not _latent_gate(zero_rows).passed

@@ -133,6 +133,11 @@
       "schema_id": "legacy_json"
     },
     {
+      "path": "dwp_uc_deduction_distributions.json",
+      "kind": "legacy_json",
+      "schema_id": "legacy_json"
+    },
+    {
       "path": "nhs_consumption_by_age_gender.json",
       "kind": "legacy_json",
       "schema_id": "legacy_json"
@@ -234,6 +239,11 @@
     },
     {
       "path": "was_wealth_support_bounds.json",
+      "kind": "legacy_json",
+      "schema_id": "legacy_json"
+    },
+    {
+      "path": "uc_deduction_support_bounds.json",
       "kind": "legacy_json",
       "schema_id": "legacy_json"
     },

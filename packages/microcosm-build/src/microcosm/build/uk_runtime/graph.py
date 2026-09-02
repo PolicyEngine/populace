@@ -201,6 +201,7 @@ _STAGE_CONSUMES: Mapping[str, frozenset[tuple[str, str]] | None] = {
             ("benunit", "would_claim_uc"),
         }
     ),
+    "uc_deduction_attributes": frozenset({("household", "region")}),
     "cgt_incidence_clone": None,
     "cgt_band_donors": None,
     "hmrc_cgt_gains_spine": frozenset(
@@ -453,6 +454,7 @@ _STAGE_CELLS: Mapping[str, tuple[_Cell, ...]] = {
         ),
         _Cell("household", "num_vehicles", "int64"),
         *_cells("household", ("cash_isa", "stocks_and_shares_isa")),
+        *_cells("household", ("mortgage_debt", "consumer_debt")),
         _Cell("person", "student_loan_balance", "float64"),
     ),
     "regional_property_uprating": _cells(
@@ -539,6 +541,12 @@ _STAGE_CELLS: Mapping[str, tuple[_Cell, ...]] = {
         _Cell("benunit", "uc_reported_capital", "float64"),
         _Cell("benunit", "frs_benunit_capital", "float64"),
         _Cell("benunit", "would_claim_uc", "bool"),
+    ),
+    "uc_deduction_attributes": (
+        _Cell("benunit", "uc_deduction_random_draw", "float64"),
+        _Cell("benunit", "uc_deduction_type_random_draw", "float64"),
+        _Cell("benunit", "uc_latent_deduction_rate", "float64"),
+        _Cell("benunit", "uc_deduction_combination", "string"),
     ),
     "cgt_incidence_clone": (
         _Cell("household", "household_is_capital_gains_clone", "bool"),

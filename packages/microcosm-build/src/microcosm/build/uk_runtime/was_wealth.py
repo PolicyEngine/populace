@@ -55,6 +55,11 @@ UK_WAS_ENGINE_PREDICTORS = (
     "capital_income",
     "is_renting",
 )
+#: Extra base predictor of the debt chain segment only (segments 1-3 are
+#: unchanged so E5's fourteen columns stay byte-equal); declared in the manifest
+#: as ``debt_segment_predictors`` and drift-asserted at run time.
+UK_WAS_DEBT_SEGMENT_PREDICTORS = ("has_mortgage_tenure",)
+UK_WAS_DEBT_OUTPUT_COLUMNS = ("mortgage_debt", "consumer_debt")
 UK_WAS_WEALTH_OUTPUT_COLUMNS = (
     "owned_land",
     "property_wealth",
@@ -70,6 +75,8 @@ UK_WAS_WEALTH_OUTPUT_COLUMNS = (
     "cash_isa",
     "stocks_and_shares_isa",
     "student_loan_balance",
+    "mortgage_debt",
+    "consumer_debt",
 )
 UK_WAS_WEALTH_HOUSEHOLD_OUTPUT_COLUMNS = tuple(
     column
@@ -146,7 +153,10 @@ _RAW_TO_CLEAN = {
     "DVPriRntR8": "private_rent_code",
     "CTAmtR8": "council_tax",
     "HFINWNTR8_Sum": "net_financial_wealth",
+    "HFINWNTR8_exSLC_Sum": "net_financial_wealth_exsl",
     "HFINWR8_SUM": "gross_financial_wealth",
+    "HMortGR8": "mortgage_debt",
+    "Ten1R8": "tenure_code",
     "DVhvalueR8": "main_residence_value",
     "DVHseValR8_sum": "other_residential_property_value",
     "DVBlDValR8_sum": "non_residential_property_value",
@@ -212,6 +222,7 @@ class UKWASWealthStageTransform:
                 )
             )
         )
+        _assert_debt_segment_predictors(self.stage)
         household_predictors = recipient_predictors(frame, self.engine)
         imputation = impute_was_wealth(
             donor,
@@ -307,12 +318,17 @@ def clean_was_household_table(raw: pd.DataFrame) -> pd.DataFrame:
     cleaned["student_loan_balance"] = (
         cleaned["total_loans"] - cleaned["total_loans_exc_slc"]
     )
+    cleaned["consumer_debt"] = (
+        cleaned["gross_financial_wealth"] - cleaned["net_financial_wealth_exsl"]
+    ).clip(lower=0)
+    cleaned["has_mortgage_tenure"] = cleaned["tenure_code"].isin({2, 3})
     cleaned["region"] = cleaned["region_code"].map(REGIONS)
     return cleaned[
         [
             *UK_WAS_WEALTH_PREDICTORS,
             "weight",
             "corporate_wealth_excl_isa",
+            "has_mortgage_tenure",
             *UK_WAS_WEALTH_HOUSEHOLD_OUTPUT_COLUMNS,
             "student_loan_balance",
         ]
@@ -378,7 +394,12 @@ def recipient_predictors(frame: Frame, engine: object) -> pd.DataFrame:
         result[predictor] = household[predictor].to_numpy()
     result["region"] = result["region"].map(_enum_name).replace(REGION_REMAP)
     result["is_renting"] = result["is_renting"].astype(bool)
-    return result.loc[:, UK_WAS_WEALTH_PREDICTORS]
+    if "tenure_type" not in household.columns:
+        raise KeyError("recipient household table is missing 'tenure_type'.")
+    result["has_mortgage_tenure"] = (
+        household["tenure_type"].map(_enum_name) == "OWNED_WITH_MORTGAGE"
+    )
+    return result.loc[:, (*UK_WAS_WEALTH_PREDICTORS, "has_mortgage_tenure")]
 
 
 @dataclass(frozen=True)
@@ -391,7 +412,7 @@ class UKWASWealthImputationResult:
     segment_seeds: tuple[int, ...] = ()
 
 
-def was_wealth_segment_seeds(seed: int, segments: int = 3) -> tuple[int, ...]:
+def was_wealth_segment_seeds(seed: int, segments: int = 4) -> tuple[int, ...]:
     """Derive one independent RNG root per chain segment from the stage seed.
 
     :meth:`RegimeGatedQRF.start_chain` spawns its fit and draw streams from
@@ -508,6 +529,17 @@ def impute_was_wealth(
             "cash_isa",
         ),
     )
+    prior_outputs = tuple(
+        column
+        for column in UK_WAS_WEALTH_OUTPUT_COLUMNS
+        if column not in UK_WAS_DEBT_OUTPUT_COLUMNS
+    )
+    for output in prior_outputs:
+        recipient_encoded[output] = raw[output]
+    run_segment(
+        (*base, *UK_WAS_DEBT_SEGMENT_PREDICTORS, *prior_outputs),
+        UK_WAS_DEBT_OUTPUT_COLUMNS,
+    )
     return UKWASWealthImputationResult(
         draws=raw.loc[:, UK_WAS_WEALTH_OUTPUT_COLUMNS],
         fit_weight_records=tuple(fit_records),
@@ -547,6 +579,9 @@ def encode_qrf_predictor_pair(
         encoded = table.drop(columns=["region"]).copy()
         if "is_renting" in encoded.columns:
             encoded["is_renting"] = encoded["is_renting"].astype(bool).astype(float)
+        for column in UK_WAS_DEBT_SEGMENT_PREDICTORS:
+            if column in encoded.columns:
+                encoded[column] = encoded[column].astype(bool).astype(float)
         for column in encoded.columns:
             if column == "weight":
                 continue
@@ -657,6 +692,20 @@ def _donor_artifact(stage: SourceStageSpec) -> Mapping[str, Any]:
         "was_wealth stage declares no was_qrf_donor artifact; refusing to read "
         "an unpinned WAS tab."
     )
+
+
+def _assert_debt_segment_predictors(stage: SourceStageSpec) -> None:
+    """The chain op must declare exactly the debt segment's extra predictors."""
+
+    operation = next(
+        op for op in stage.operations if op.kind == "fit_weighted_qrf_chain"
+    )
+    declared = tuple(operation.parameters.get("debt_segment_predictors", ()))
+    if declared != UK_WAS_DEBT_SEGMENT_PREDICTORS:
+        raise ValueError(
+            "was_wealth debt_segment_predictors drifted: manifest declares "
+            f"{declared!r}, runtime uses {UK_WAS_DEBT_SEGMENT_PREDICTORS!r}."
+        )
 
 
 def _qrf_n_estimators(stage: SourceStageSpec) -> int:

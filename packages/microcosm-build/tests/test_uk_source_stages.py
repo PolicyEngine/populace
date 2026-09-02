@@ -57,6 +57,9 @@ UC_REPORTER_REDRAW_STAGE_NAMES = [
 UC_COHERENCE_STAGE_NAMES = [
     "uc_capital_coherence",
 ]
+E9_STAGE_NAMES = [
+    "uc_deduction_attributes",
+]
 E8_STAGE_NAMES = [
     "cgt_incidence_clone",
     "cgt_band_donors",
@@ -74,6 +77,7 @@ UK_SOURCE_STAGE_NAMES = [
     *E7_STAGE_NAMES,
     *UC_REPORTER_REDRAW_STAGE_NAMES,
     *UC_COHERENCE_STAGE_NAMES,
+    *E9_STAGE_NAMES,
     *E8_STAGE_NAMES,
     "frs_hmrc_retained_leaves",
     "hmrc_spi_income",
@@ -155,14 +159,14 @@ class TestUKSourceStagesManifest:
         canonical = _load_json(CANONICAL_SOURCE_STAGES)
         names = [stage["stage"] for stage in canonical["stages"]]
 
-        assert (
-            names[names.index("etb_services") + 1 : names.index("cgt_incidence_clone")]
-            == [
-                *E7_STAGE_NAMES,
-                *UC_REPORTER_REDRAW_STAGE_NAMES,
-                *UC_COHERENCE_STAGE_NAMES,
-            ]
-        )
+        assert names[
+            names.index("etb_services") + 1 : names.index("cgt_incidence_clone")
+        ] == [
+            *E7_STAGE_NAMES,
+            *UC_REPORTER_REDRAW_STAGE_NAMES,
+            *UC_COHERENCE_STAGE_NAMES,
+            *E9_STAGE_NAMES,
+        ]
 
     def test_age_tail_runs_immediately_after_frs_spine(self) -> None:
         canonical = _load_json(CANONICAL_SOURCE_STAGES)
@@ -312,6 +316,7 @@ class TestUKSourceStagesManifest:
                     "hmrc_spi_income_spine": _identity,
                     "uc_reporter_redraw": _identity,
                     "uc_capital_coherence": _identity,
+                    "uc_deduction_attributes": _identity,
                     "cgt_incidence_clone": _identity,
                     "cgt_band_donors": _identity,
                     "hmrc_cgt_gains_spine": _identity,
@@ -406,6 +411,10 @@ class TestDeclaredOutputsAreWrittenColumns:
         from microcosm.build.uk_runtime.regional_uprating import (
             UK_REGIONAL_PROPERTY_REWRITES,
         )
+        from microcosm.build.uk_runtime.uc_deduction_attributes import (
+            UC_DEDUCTION_NONNEGATIVE_OUTPUT_COLUMNS,
+            UC_DEDUCTION_OUTPUT_COLUMNS,
+        )
         from microcosm.build.uk_runtime.was_wealth import (
             UK_WAS_WEALTH_NONNEGATIVE_OUTPUT_COLUMNS,
             UK_WAS_WEALTH_OUTPUT_COLUMNS,
@@ -444,6 +453,11 @@ class TestDeclaredOutputsAreWrittenColumns:
         assert (
             stages["was_wealth"].nonnegative_outputs
             == UK_WAS_WEALTH_NONNEGATIVE_OUTPUT_COLUMNS
+        )
+        assert stages["uc_deduction_attributes"].outputs == UC_DEDUCTION_OUTPUT_COLUMNS
+        assert (
+            stages["uc_deduction_attributes"].nonnegative_outputs
+            == UC_DEDUCTION_NONNEGATIVE_OUTPUT_COLUMNS
         )
         assert stages["regional_property_uprating"].outputs == ()
         assert (
@@ -667,6 +681,12 @@ class TestE3ManifestLockstep:
             "redraw_spi_reporter_capital",
             "derive",
         ]
+        assert [op.kind for op in stages["uc_deduction_attributes"].operations] == [
+            "assign_uniform_draw",
+            "assign_uniform_draw",
+            "map_uniform_to_banded_rate",
+            "map_uniform_to_categorical",
+        ]
         assert [op.kind for op in stages["cgt_incidence_clone"].operations] == [
             "clone_records",
             "draw_capital_gains_prior_from_banded_quantiles",
@@ -851,6 +871,27 @@ class TestE3ManifestLockstep:
                 }:
                     assert isinstance(operation.parameters.get("seed"), int)
 
+    def test_e5_debt_segment_predictors_lockstep(self) -> None:
+        from microcosm.build.uk_runtime.was_wealth import (
+            UK_WAS_DEBT_SEGMENT_PREDICTORS,
+            UK_WAS_WEALTH_PREDICTORS,
+        )
+
+        spec = load_country_spec("uk")
+        stages = {stage.stage: stage for stage in spec.sources.stages}
+        qrf = stages["was_wealth"].operations[2]
+
+        assert qrf.kind == "fit_weighted_qrf_chain"
+        assert tuple(qrf.parameters["debt_segment_predictors"]) == (
+            UK_WAS_DEBT_SEGMENT_PREDICTORS
+        )
+        # The extra predictor belongs to the debt segment only: the shared
+        # base list, and so E5's first three segments, are unchanged.
+        assert not set(UK_WAS_DEBT_SEGMENT_PREDICTORS) & set(
+            qrf.parameters["predictors"]
+        )
+        assert tuple(qrf.parameters["predictors"]) == UK_WAS_WEALTH_PREDICTORS
+
     def test_e5_qrf_operation_declares_integer_seed(self) -> None:
         spec = load_country_spec("uk")
         stages = {stage.stage: stage for stage in spec.sources.stages}
@@ -903,6 +944,20 @@ class TestE3ManifestLockstep:
             operation.parameters["seed"]
             for operation in stages["student_loans"].operations[1:]
         ] == [42, 42]
+
+    def test_e9_declared_seed_lockstep(self) -> None:
+        from microcosm.build.uk_runtime.uc_deduction_attributes import (
+            UK_UC_DEDUCTION_ATTRIBUTES_DECLARED_SEEDS,
+        )
+
+        stage = load_country_spec("uk").sources.stage_map()["uc_deduction_attributes"]
+        declared = {
+            operation.parameters["output"]: operation.parameters["seed"]
+            for operation in stage.operations
+            if operation.kind == "assign_uniform_draw"
+        }
+
+        assert declared == UK_UC_DEDUCTION_ATTRIBUTES_DECLARED_SEEDS
 
     def test_full_uk_source_stage_plan_compiles_with_e4_stages(self) -> None:
         spec = load_country_spec("uk")

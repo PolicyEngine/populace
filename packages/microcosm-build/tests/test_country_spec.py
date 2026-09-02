@@ -922,6 +922,7 @@ class TestUKCountryPackage:
             "lcfs_consumption_anchors.json",
             "etb_policy_anchors.json",
             "etb_services_anchors.json",
+            "dwp_uc_deduction_distributions.json",
             "nhs_consumption_by_age_gender.json",
             "ons_age_tail_band_populations.json",
             "lcfs_consumption_support_bounds.json",
@@ -943,6 +944,7 @@ class TestUKCountryPackage:
             "registry_parity_fixture_2025.json",
             "local_registry_parity_fixture_2025.json",
             "was_wealth_support_bounds.json",
+            "uc_deduction_support_bounds.json",
             "local_binding_adjudications.json",
             "uk_local_target_census.json",
             "uk_data_target_parity.json",
@@ -957,13 +959,14 @@ class TestUKCountryPackage:
             "local_target_reference_membership.json",
         )
 
-    def test_uk_source_manifest_loads_twenty_nine_stages(self) -> None:
+    def test_uk_source_manifest_loads_thirty_stages(self) -> None:
         spec = load_country_spec("uk")
 
         assert spec.sources is not None
-        # 27 spine stages (uc_reporter_redraw is the newest, #832) plus the
+        # 28 spine stages (uc_reporter_redraw #832, then uc_deduction_attributes
+        # #685 as the newest) plus the
         # two certified-pair stages the June path still uses.
-        assert len(spec.sources.stages) == 29
+        assert len(spec.sources.stages) == 30
 
 
 class TestExistingPackagesGeneralize:
@@ -1009,6 +1012,7 @@ class TestExistingPackagesGeneralize:
             "lcfs_consumption_anchors.json",
             "etb_policy_anchors.json",
             "etb_services_anchors.json",
+            "dwp_uc_deduction_distributions.json",
             "nhs_consumption_by_age_gender.json",
             "ons_age_tail_band_populations.json",
             "lcfs_consumption_support_bounds.json",
@@ -1030,6 +1034,7 @@ class TestExistingPackagesGeneralize:
             "registry_parity_fixture_2025.json",
             "local_registry_parity_fixture_2025.json",
             "was_wealth_support_bounds.json",
+            "uc_deduction_support_bounds.json",
             "local_binding_adjudications.json",
             "uk_local_target_census.json",
             "uk_data_target_parity.json",
@@ -1280,6 +1285,7 @@ class TestUKGatesManifest:
             "uk_ledger_compile_parity_local_incumbent_2025",
             "uk_target_surface_local_default_2025",
             "uk_stage_was_wealth_support",
+            "uk_stage_uc_deduction_attributes",
             "uk_stage_lcfs_consumption_support",
             "uk_stage_etb_vat_support",
             "uk_stage_etb_services_support",
@@ -1305,6 +1311,7 @@ class TestUKGatesManifest:
             "uk_export_surface",
             "uk_take_up_signal",
             "uk_brma_enum_domain",
+            "uk_uc_deduction_combination_enum_domain",
             "uk_student_loan_plan_enum_domain",
             "uk_calibration_reference_coverage",
             "uk_target_surface",
@@ -1370,6 +1377,7 @@ class TestUKGatesManifest:
         flagged = [g.id for g in manifest.gates if g.evidence_absent_blocks]
         assert flagged == [
             "uk_stage_was_wealth_support",
+            "uk_stage_uc_deduction_attributes",
             "uk_stage_lcfs_consumption_support",
             "uk_stage_etb_vat_support",
             "uk_stage_etb_services_support",
@@ -1416,6 +1424,7 @@ class TestUKGatesManifest:
             "lcfs_consumption_support_bounds.json",
             "etb_vat_support_bounds.json",
             "etb_services_support_bounds.json",
+            "uc_deduction_support_bounds.json",
         )
         aggregate = params["uk_aggregate_admin"]
         assert aggregate["default_rtol"] == 0.15

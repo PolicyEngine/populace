@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "country": "uk",
+  "policy": "Pinned estimation distributions for identity-keyed Universal Credit deduction attributes. The mappings mirror PolicyEngine-UK 2.92.1 exactly; statutory caps and award floors remain engine-owned.",
+  "source": {
+    "publisher": "Department for Work and Pensions",
+    "publication_url": "https://www.gov.uk/government/statistics/universal-credit-quarterly-statistics-29-april-2013-to-12-february-2026/universal-credit-deductions-statistics-march-2025-to-february-2026",
+    "ods_url": "https://assets.publishing.service.gov.uk/media/69fb3ea22a6137e93226b7ce/universal-credit-deductions-march-2025-to-february-2026.ods",
+    "ods_sha256": "307ec8fa49a1f1e23db3c59f1282e16609de03444e501824e204b4151e2e5c9b",
+    "chronicle_package_id": "dwp-uc-deductions-march-2025-february-2026",
+    "chronicle_candidate": true,
+    "observation_windows": {
+      "table_2": "March to May 2025 average, before the Fair Repayment Rate",
+      "table_5": "March to May 2025 average, before the Fair Repayment Rate",
+      "table_6": "February 2026 constituency rows"
+    }
+  },
+  "latent_rate_distribution": {
+    "parameter_path": "gov.simulation.uc_deductions.latent_rate_distribution",
+    "calibration_cap": {
+      "value": 0.25,
+      "parameter_path": "gov.simulation.uc_deductions.calibration_cap"
+    },
+    "bands": [
+      {"name": "UNDER_5", "lower": 0.0, "upper": 0.05, "share": 0.047},
+      {"name": "AT_5", "lower": 0.05, "upper": 0.05, "share": 0.03},
+      {"name": "FIVE_TO_10", "lower": 0.05, "upper": 0.1, "share": 0.07},
+      {"name": "AT_10", "lower": 0.1, "upper": 0.1, "share": 0.01},
+      {"name": "TEN_TO_15", "lower": 0.1, "upper": 0.15, "share": 0.04},
+      {"name": "AT_15", "lower": 0.15, "upper": 0.15, "share": 0.047},
+      {"name": "FIFTEEN_TO_20", "lower": 0.15, "upper": 0.2, "share": 0.03},
+      {"name": "AT_20", "lower": 0.2, "upper": 0.2, "share": 0.01},
+      {"name": "TWENTY_TO_25", "lower": 0.2, "upper": 0.25, "share": 0.03},
+      {"name": "AT_25", "lower": 0.25, "upper": 0.25, "share": 0.133},
+      {"name": "OVER_25", "lower": 0.25, "upper": 0.3, "share": 0.02}
+    ]
+  },
+  "type_combination": {
+    "parameter_path": "gov.simulation.uc_deductions.type_combination",
+    "shares": [
+      {"name": "ADVANCE_ONLY", "share": 0.327},
+      {"name": "THIRD_PARTY_ONLY", "share": 0.06},
+      {"name": "GOVERNMENT_ONLY", "share": 0.227},
+      {"name": "ADVANCE_AND_GOVERNMENT", "share": 0.18},
+      {"name": "ADVANCE_AND_THIRD_PARTY", "share": 0.1},
+      {"name": "THIRD_PARTY_AND_GOVERNMENT", "share": 0.03},
+      {"name": "ALL_THREE", "share": 0.08}
+    ]
+  },
+  "region_incidence_factor": {
+    "parameter_path": "gov.simulation.uc_deductions.region_incidence_factor",
+    "factors": {
+      "UNKNOWN": 1.0,
+      "NORTH_EAST": 1.12,
+      "NORTH_WEST": 1.09,
+      "YORKSHIRE": 1.05,
+      "EAST_MIDLANDS": 0.97,
+      "WEST_MIDLANDS": 1.0,
+      "EAST_OF_ENGLAND": 0.93,
+      "LONDON": 0.94,
+      "SOUTH_EAST": 0.93,
+      "SOUTH_WEST": 0.9,
+      "WALES": 1.05,
+      "SCOTLAND": 1.09,
+      "NORTHERN_IRELAND": 1.0
+    }
+  }
+}

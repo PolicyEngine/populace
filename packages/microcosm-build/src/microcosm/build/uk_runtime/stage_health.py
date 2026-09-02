@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Mapping
 from importlib.resources import files
 
@@ -51,6 +52,8 @@ def uk_stage_health_gate(
         return _cgt_band_donor_support_gate(stage, evidence, parameters)
     if check == "cgt_imputation_summary":
         return _cgt_imputation_summary_gate(stage, evidence, parameters)
+    if check == "latent_attribute_realization":
+        return _latent_attribute_realization_gate(stage, evidence)
     return GateResult(
         name="stage_health",
         passed=False,
@@ -429,3 +432,110 @@ def _cgt_imputation_summary_gate(
             failures.append(f"{stage}: {key} is negative.")
     details = {"band_rows": len(rows), "taxpayer_mass": evidence.get("taxpayer_mass")}
     return _fail(stage, check, failures, details) if failures else _pass(stage, check, details)
+
+
+def _latent_attribute_realization_gate(
+    stage: str,
+    evidence: Mapping[str, object],
+) -> GateResult:
+    """Check a latent-attribute stage's realization receipt.
+
+    The receipt carries, per cell, the declared ``target`` share, the
+    **unweighted** ``realized`` share over the ``rows`` behind it, and the
+    producer's ``tolerance``. Identity-keyed draws give every unit the same
+    probability regardless of its weight, so the unweighted share is the
+    statistic that tests the mechanism; the weighted share (``realized_weighted``,
+    informational) carries the frame's weight variance on top and is what the
+    engine round-trip compares with the publisher. The gate owns the pass rule:
+    it recomputes the binomial band from ``target`` and ``rows`` at
+    :data:`LATENT_ATTRIBUTE_SIGMA` (floored at one row's worth, capped at one)
+    and holds the cell to the tighter of the producer's figure and its own, so
+    a widened producer tolerance cannot pass silently.
+    """
+
+    check = "latent_attribute_realization"
+    failures: list[str] = []
+    raw_coherence = evidence.get("coherence_violation_count")
+    if not isinstance(raw_coherence, int) or isinstance(raw_coherence, bool):
+        failures.append(f"{stage}: coherence_violation_count is missing.")
+        coherence = None
+    else:
+        coherence = int(raw_coherence)
+        if coherence != 0:
+            failures.append(
+                f"{stage}: coherence_violation_count is {coherence}, expected 0."
+            )
+    cells_checked = 0
+    worst_ratio = 0.0
+    for block_name in (
+        "incidence_by_region",
+        "latent_rate_bands",
+        "combination_shares",
+    ):
+        block = _mapping(evidence.get(block_name), label=f"{stage}.{block_name}")
+        if not block:
+            failures.append(f"{stage}: {block_name} is empty.")
+        for name, raw_row in block.items():
+            if not isinstance(raw_row, Mapping):
+                failures.append(f"{stage}: {block_name}.{name} is not an object.")
+                continue
+            label = f"{stage}.{block_name}.{name}"
+            target = _finite_number(raw_row.get("target"), label=f"{label}.target")
+            realized = _finite_number(
+                raw_row.get("realized"), label=f"{label}.realized"
+            )
+            declared_tolerance = _finite_number(
+                raw_row.get("tolerance"), label=f"{label}.tolerance"
+            )
+            rows = int(raw_row.get("rows", 0))
+            cells_checked += 1
+            if not 0.0 <= target <= 1.0 or not 0.0 <= realized <= 1.0:
+                failures.append(f"{label}: target and realized must be shares.")
+            if rows <= 0 or not 0.0 <= declared_tolerance <= 1.0:
+                failures.append(f"{label}: has invalid rows/tolerance.")
+                continue
+            tolerance = min(
+                declared_tolerance, _binomial_tolerance(target=target, rows=rows)
+            )
+            deviation = abs(realized - target)
+            ratio = deviation / tolerance if tolerance > 0.0 else float("inf")
+            worst_ratio = max(worst_ratio, ratio)
+            if deviation > tolerance:
+                failures.append(
+                    f"{label}: deviation {deviation} exceeds {tolerance} "
+                    f"(declared {declared_tolerance})."
+                )
+    details = {
+        "cells_checked": cells_checked,
+        "coherence_violation_count": coherence,
+        "worst_tolerance_ratio": worst_ratio,
+    }
+    return (
+        _fail(stage, check, failures, details)
+        if failures
+        else _pass(stage, check, details)
+    )
+
+
+#: Sigma multiple for the per-cell binomial band. A latent-attribute receipt
+#: holds ~30 cells (regions, bands, combinations) per build; three sigma would
+#: false-alarm on roughly one build in twelve, four sigma on one in five hundred.
+LATENT_ATTRIBUTE_SIGMA = 4.0
+
+
+def latent_attribute_tolerance(*, target: float, rows: int) -> float:
+    """Binomial band for a share realized over ``rows`` identity-keyed draws."""
+
+    if rows <= 0:
+        return 1.0
+    return min(
+        1.0,
+        max(
+            1.0 / rows,
+            LATENT_ATTRIBUTE_SIGMA * math.sqrt(target * (1.0 - target) / rows),
+        ),
+    )
+
+
+def _binomial_tolerance(*, target: float, rows: int) -> float:
+    return latent_attribute_tolerance(target=target, rows=rows)

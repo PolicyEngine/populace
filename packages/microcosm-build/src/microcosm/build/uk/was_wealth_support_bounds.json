@@ -65,6 +65,14 @@
     "student_loan_balance": [
       0.0,
       200000
+    ],
+    "mortgage_debt": [
+      0.0,
+      4000000
+    ],
+    "consumer_debt": [
+      0.0,
+      400000
     ]
   },
   "chronicle": [

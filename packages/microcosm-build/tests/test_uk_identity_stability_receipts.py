@@ -211,9 +211,7 @@ class TestE6Receipt:
                 }
             ),
             benunit=pd.DataFrame({"benunit_id": [10], "benunit_household_id": [100]}),
-            household=pd.DataFrame(
-                {"household_id": [100], "household_weight": [1.0]}
-            ),
+            household=pd.DataFrame({"household_id": [100], "household_weight": [1.0]}),
             time_period="2024",
             weight_kind=WeightKind.DESIGN,
         )
@@ -344,3 +342,95 @@ def test_e8_carrier_recompute_uses_disaggregated_age():
     assert _oldest_adult_indices(clamped, household_ids={7}).tolist() != (
         stage_choice.tolist()
     )
+
+
+def _e9_frame(*, clone_flag: bool = False):
+    """Three benunits over two households with a region, ready for the E9 stage."""
+
+    from microcosm.build.uk_runtime.cgt_structure import HOUSEHOLD_IS_CGT_CLONE
+
+    person = pd.DataFrame(
+        {
+            "person_id": [1, 2, 3, 4],
+            "person_benunit_id": [10, 10, 20, 30],
+            "person_household_id": [100, 100, 200, 200],
+        }
+    )
+    benunit = pd.DataFrame({"benunit_id": [10, 20, 30]})
+    household = pd.DataFrame(
+        {
+            "household_id": [100, 200],
+            "household_weight": [10.0, 20.0],
+            "region": ["LONDON", "NORTH_EAST"],
+        }
+    )
+    if clone_flag:
+        household[HOUSEHOLD_IS_CGT_CLONE] = [False, True]
+    return uk_national_frame(
+        person=person,
+        benunit=benunit,
+        household=household,
+        time_period="2024",
+        weight_kind=WeightKind.DESIGN,
+    )
+
+
+class TestE9Receipt:
+    def test_stage_output_recomputes_identically_and_matches_stored(self) -> None:
+        from microcosm.build.uk_runtime.uc_deduction_attributes import (
+            assign_uc_deduction_attributes,
+            load_uc_deduction_distributions,
+        )
+
+        tool = _load_tool()
+        staged = assign_uc_deduction_attributes(
+            _e9_frame(), resource=load_uc_deduction_distributions()
+        ).frame
+        receipt = tool.e9_identity_receipt(staged, permutation_seed=7)
+
+        assert receipt["identical_under_permutation"] is True
+        assert receipt["matches_stored_columns"] is True
+        assert receipt["benunits_recomputed"] == 3
+        assert receipt["benunits_excluded_as_copies"] == 0
+
+    def test_a_tampered_stored_rate_is_reported(self) -> None:
+        from microcosm.build.uk_runtime.uc_deduction_attributes import (
+            assign_uc_deduction_attributes,
+            load_uc_deduction_distributions,
+        )
+
+        tool = _load_tool()
+        staged = assign_uc_deduction_attributes(
+            _e9_frame(), resource=load_uc_deduction_distributions()
+        ).frame
+        benunit = staged.table("benunit").copy()
+        benunit.loc[0, "uc_latent_deduction_rate"] = 0.123
+        tampered = uk_national_frame(
+            person=staged.table("person").copy(),
+            benunit=benunit,
+            household=staged.table("household").copy(),
+            time_period="2024",
+            weight_kind=WeightKind.DESIGN,
+            household_weights=staged.weights_for("household").values,
+        )
+        receipt = tool.e9_identity_receipt(tampered, permutation_seed=7)
+
+        assert receipt["identical_under_permutation"] is True
+        assert receipt["matches_stored_columns"] is False
+        assert receipt["stored_mismatches"] == {"benunit": ["uc_latent_deduction_rate"]}
+
+    def test_cloned_households_are_excluded_from_the_recompute(self) -> None:
+        from microcosm.build.uk_runtime.uc_deduction_attributes import (
+            assign_uc_deduction_attributes,
+            load_uc_deduction_distributions,
+        )
+
+        tool = _load_tool()
+        staged = assign_uc_deduction_attributes(
+            _e9_frame(clone_flag=True), resource=load_uc_deduction_distributions()
+        ).frame
+        receipt = tool.e9_identity_receipt(staged, permutation_seed=7)
+
+        assert receipt["benunits_recomputed"] == 1
+        assert receipt["benunits_excluded_as_copies"] == 2
+        assert receipt["matches_stored_columns"] is True

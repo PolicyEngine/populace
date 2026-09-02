@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "country": "uk",
+  "policy": "Declared mathematical support for the persisted Universal Credit deduction attributes; these bounds are not donor-derived.",
+  "bounds": {
+    "uc_deduction_random_draw": [0.0, 1.0],
+    "uc_deduction_type_random_draw": [0.0, 1.0],
+    "uc_latent_deduction_rate": [0.0, 0.3]
+  }
+}

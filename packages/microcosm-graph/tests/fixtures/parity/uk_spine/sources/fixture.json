@@ -13,7 +13,7 @@
     "spi_sample_fraction": 0.0135,
     "student_loans_calibration_year": 2025
   },
-  "description": "Data-only inputs for reconstructing the same 26 current UK stage transform classes used by the legacy StagePlan oracle.",
+  "description": "Data-only inputs for reconstructing the same 27 current UK stage transform classes used by the legacy StagePlan oracle.",
   "inputs": {
     "cgt_distribution": "cgt_distribution.json",
     "etb": "etb.csv",
@@ -2686,6 +2686,72 @@
       "stage": "uc_capital_coherence",
       "survey": "Family Resources Survey 2024-25"
     },
+    "uc_deduction_attributes": {
+      "artifacts": [
+        {
+          "format": "json",
+          "kind": "public_aggregate_reference",
+          "resource": "dwp_uc_deduction_distributions.json",
+          "role": "deduction_distribution"
+        }
+      ],
+      "grain": "benunit",
+      "nonnegative_outputs": [
+        "uc_deduction_random_draw",
+        "uc_deduction_type_random_draw",
+        "uc_latent_deduction_rate"
+      ],
+      "notes": "Assigns region-conditioned latent deduction demand to every benefit unit from identity-keyed seed-0 draws, rounded and clamped to the PolicyEngine-UK float32 input contract before applying the engine's exact band and normalized-combination mappings. The attributes are award-independent; law and claimant gating remain in the engine. Clone and donor-stack stages copy the completed attributes byte-for-byte.",
+      "operations": [
+        {
+          "kind": "assign_uniform_draw",
+          "output": "uc_deduction_random_draw",
+          "seed": 0
+        },
+        {
+          "kind": "assign_uniform_draw",
+          "output": "uc_deduction_type_random_draw",
+          "seed": 0
+        },
+        {
+          "distribution": "latent_rate_distribution",
+          "draw": "uc_deduction_random_draw",
+          "draw_dtype": "float32",
+          "incidence_modifier": {
+            "column": "region",
+            "entity": "household",
+            "table": "region_incidence_factor"
+          },
+          "kind": "map_uniform_to_banded_rate",
+          "none_value": 0,
+          "output": "uc_latent_deduction_rate",
+          "resource": "dwp_uc_deduction_distributions.json"
+        },
+        {
+          "distribution": "type_combination",
+          "draw": "uc_deduction_type_random_draw",
+          "draw_dtype": "float32",
+          "gate": {
+            "column": "uc_latent_deduction_rate",
+            "positive": true
+          },
+          "kind": "map_uniform_to_categorical",
+          "none_value": "NONE",
+          "output": "uc_deduction_combination",
+          "resource": "dwp_uc_deduction_distributions.json"
+        }
+      ],
+      "outputs": [
+        "uc_deduction_random_draw",
+        "uc_deduction_type_random_draw",
+        "uc_latent_deduction_rate",
+        "uc_deduction_combination"
+      ],
+      "rewrites": [],
+      "source": "Department for Work and Pensions supplementary Tables 2, 5 and 6, sha-pinned by Chronicle package dwp-uc-deductions-march-2025-february-2026.",
+      "stage": "uc_deduction_attributes",
+      "survey": "DWP Universal Credit deductions statistics, March 2025 to February 2026"
+    },
     "uc_reporter_redraw": {
       "artifacts": [],
       "grain": "benunit",
@@ -2785,14 +2851,18 @@
         "num_vehicles",
         "cash_isa",
         "stocks_and_shares_isa",
-        "student_loan_balance"
+        "student_loan_balance",
+        "mortgage_debt",
+        "consumer_debt"
       ],
       "notes": "Ports incumbent WAS round-8 wealth imputation with signed E5 differences: exact lower-case column matching replaces the fuzzy r/w fallback; cash ISA uses DVCISAVR8_aggr and stocks-and-shares ISA uses DVIISAVR8_aggr; private pension wealth (WAS total private pension wealth less the current defined-benefit component; DB-type components at the SCAPE rate, money-purchase components at reported fund values) is drawn as its own output private_pension_wealth and no longer folded into corporate_wealth, which keeps only the share-like holdings - pension rights are disregarded capital in every means test (UC Regs 2013 Sch 10 para 10 and the HB/JSA/ESA/IS/SPC parallels; uk-data#452) - and the downstream chain segment conditions on both components; each chain segment starts its own fit and draw RNG streams from a child seed derived deterministically from the declared seed (start_chain respawns from the model seed on every call, so one shared model coupled the k-th target of every segment); corporate_wealth folds stocks-and-shares ISA after drawing corporate_wealth_excl_isa; recipient Northern Ireland regions are mapped to Wales for prediction only; student_loan_balance is allocated by household id rather than the incumbent positional off-by-one. Engine predictors materialize at their native entity and person/benunit values are summed to household, reproducing the incumbent map_to=household semantics; region is one-hot encoded jointly across donor and recipient (the incumbent's dummy encoding), with unmapped donor GOR codes becoming all-zero dummy rows. The WAS and FRS predictor definitions are not fully like-for-like and are ported as-is; raw WAS missing values are blanket-filled with zero; UKDS negative sentinel codes (-9/-8/-7/-6) are recoded to zero for the nonnegative-domain columns the licensed audit found carrying them (vcarnr8: 2 rows; HBedRmR8: 95.8 percent - the bedrooms question is effectively unasked in the WAS household file, predictor-quality revisit registered on microcosm#145) - a signed difference vs the incumbent, which trains on raw sentinels; DVPriRntR8's -9 is structural not-applicable so the is_renting mapping is unchanged; genuinely negative domains are never recoded.",
       "operations": [
         {
           "derived": {
             "cash_isa": "DVCISAVR8_aggr",
+            "consumer_debt": "max(HFINWR8_SUM - HFINWNTR8_exSLC_Sum, 0)",
             "corporate_wealth_excl_isa": "DVFESHARESR8_aggr + DVFShUKVR8_aggr + DVFCollVR8_aggr",
+            "has_mortgage_tenure": "Ten1R8 in {2, 3}",
             "is_renting": "DVPriRntR8 == 1",
             "private_pension_wealth": "totalpenr8_aggr - dvvaldbt_scaper8_aggr",
             "region": "GORR8 via incumbent REGIONS map",
@@ -2802,13 +2872,16 @@
           "direct_maps": {
             "gross_financial_wealth": "HFINWR8_SUM",
             "main_residence_value": "DVhvalueR8",
+            "mortgage_debt": "HMortGR8",
             "net_financial_wealth": "HFINWNTR8_Sum",
+            "net_financial_wealth_exsl": "HFINWNTR8_exSLC_Sum",
             "non_residential_property_value": "DVBlDValR8_sum",
             "num_vehicles": "vcarnr8",
             "other_residential_property_value": "DVHseValR8_sum",
             "owned_land": "DVLUKValR8_sum",
             "property_wealth": "DVPropertyR8",
             "savings": "DVSaValR8_aggr",
+            "tenure_code": "Ten1R8",
             "weight": "R8xshhwgt"
           },
           "fillna": 0,
@@ -2849,7 +2922,12 @@
             "savings",
             "num_vehicles",
             "student_loan_balance",
-            "cash_isa"
+            "cash_isa",
+            "mortgage_debt",
+            "consumer_debt"
+          ],
+          "debt_segment_predictors": [
+            "has_mortgage_tenure"
           ],
           "integer_outputs": [
             "num_vehicles"
@@ -2919,7 +2997,9 @@
         "num_vehicles",
         "cash_isa",
         "stocks_and_shares_isa",
-        "student_loan_balance"
+        "student_loan_balance",
+        "mortgage_debt",
+        "consumer_debt"
       ],
       "rewrites": [],
       "source": "Office for National Statistics Wealth and Assets Survey, UK Data Service SN 7215, DOI 10.5255/UKDA-SN-7215-20; local licensed 2006-22 household tab.",

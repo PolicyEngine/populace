@@ -105,6 +105,9 @@ from microcosm.build.uk_runtime.take_up_contract import load_uk_take_up_contract
 from microcosm.build.uk_runtime.uc_capital_coherence import (
     UKUCCapitalCoherenceStageTransform,
 )
+from microcosm.build.uk_runtime.uc_deduction_attributes import (
+    UKUCDeductionAttributesStageTransform,
+)
 from microcosm.build.uk_runtime.uc_reporter_redraw import (
     UKUCReporterRedrawStageTransform,
 )
@@ -1200,6 +1203,12 @@ def main(argv: list[str] | None = None) -> int:
             implementations["uc_capital_coherence"] = (
                 UKUCCapitalCoherenceStageTransform(
                     stage=stages_by_name["uc_capital_coherence"]
+                )
+            )
+        if "uc_deduction_attributes" in stage_names:
+            implementations["uc_deduction_attributes"] = (
+                UKUCDeductionAttributesStageTransform(
+                    stage=stages_by_name["uc_deduction_attributes"]
                 )
             )
         if "cgt_incidence_clone" in stage_names:

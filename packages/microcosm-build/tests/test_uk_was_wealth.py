@@ -50,7 +50,12 @@ def _stage() -> SourceStageSpec:
             "grain": "household",
             "artifacts": [],
             "operations": [
-                {"kind": "fit_weighted_qrf_chain", "seed": 0, "n_estimators": 2}
+                {
+                    "kind": "fit_weighted_qrf_chain",
+                    "seed": 0,
+                    "n_estimators": 2,
+                    "debt_segment_predictors": ["has_mortgage_tenure"],
+                }
             ],
             "outputs": list(UK_WAS_WEALTH_OUTPUT_COLUMNS),
             "nonnegative_outputs": [
@@ -86,7 +91,10 @@ def _raw_was() -> pd.DataFrame:
             "DVPriRntR8": [1, 2],
             "CTAmtR8": [1000.0, 1200.0],
             "HFINWNTR8_Sum": [-5.0, 50.0],
+            "HFINWNTR8_exSLC_Sum": [20.0, 40.0],
             "HFINWR8_SUM": [30.0, 40.0],
+            "HMortGR8": [1000.0, 0.0],
+            "Ten1R8": [2, 4],
             "DVhvalueR8": [100000.0, 200000.0],
             "DVHseValR8_sum": [1000.0, 2000.0],
             "DVBlDValR8_sum": [3000.0, 4000.0],
@@ -137,6 +145,7 @@ def _frame() -> object:
             "council_tax": [1000.0, 1200.0],
             "household_net_income": [50000.0, 60000.0],
             "is_renting": [False, True],
+            "tenure_type": ["OWNED_WITH_MORTGAGE", "OWNED_OUTRIGHT"],
         }
     )
     return uk_national_frame(
@@ -158,6 +167,9 @@ def test_was_donor_cleaning_arithmetic_and_exact_case_insensitive_columns() -> N
     assert donor["corporate_wealth_excl_isa"].tolist() == [13.0, 16.0]
     assert donor["corporate_wealth"].tolist() == [18.0, 22.0]
     assert donor["student_loan_balance"].tolist() == [5000.0, 2000.0]
+    assert donor["mortgage_debt"].tolist() == [1000.0, 0.0]
+    assert donor["consumer_debt"].tolist() == [10.0, 0.0]
+    assert donor["has_mortgage_tenure"].tolist() == [True, False]
     assert donor["region"].tolist() == ["LONDON", "SCOTLAND"]
     assert donor["is_renting"].tolist() == [True, False]
     assert 3 not in REGIONS
@@ -203,6 +215,7 @@ def test_recipient_predictors_sum_person_and_benunit_variables_to_household() ->
     assert predictors["num_children"].tolist() == [0.0, 0.0]
     assert predictors["household_net_income"].tolist() == [50000.0, 60000.0]
     assert predictors["is_renting"].tolist() == [False, True]
+    assert predictors["has_mortgage_tenure"].tolist() == [True, False]
 
 
 def test_recipient_predictors_fail_loud_on_entity_mismatch() -> None:
@@ -375,7 +388,12 @@ def test_stage_transform_refuses_sha_mismatched_tab(tmp_path) -> None:
                 }
             ],
             "operations": [
-                {"kind": "fit_weighted_qrf_chain", "seed": 0, "n_estimators": 2}
+                {
+                    "kind": "fit_weighted_qrf_chain",
+                    "seed": 0,
+                    "n_estimators": 2,
+                    "debt_segment_predictors": ["has_mortgage_tenure"],
+                }
             ],
             "outputs": list(UK_WAS_WEALTH_OUTPUT_COLUMNS),
         }
@@ -450,6 +468,12 @@ def test_was_imputer_uses_checkpointed_chain_segments(
     assert "corporate_wealth" in calls[2][0]
     assert "private_pension_wealth" not in calls[1][0]
     assert calls[2][1][-1] == "cash_isa"
+    assert calls[3][1] == ("mortgage_debt", "consumer_debt")
+    assert calls[3][0] == (
+        *calls[0][0],
+        "has_mortgage_tenure",
+        *UK_WAS_WEALTH_OUTPUT_COLUMNS[:-2],
+    )
     fitted_targets = [name for _, targets in calls for name in targets]
     assert [record.fit_name for record in result.fit_weight_records] == [
         f"uk_was_2018_20_wealth:{target}" for target in fitted_targets
@@ -457,7 +481,7 @@ def test_was_imputer_uses_checkpointed_chain_segments(
     assert {record.weight_kind for record in result.fit_weight_records} == {"explicit"}
     # One independent RNG root per segment, derived from the declared seed.
     assert seeds == list(module.was_wealth_segment_seeds(0))
-    assert len(set(seeds)) == 3
+    assert len(set(seeds)) == 4
     assert result.segment_seeds == tuple(seeds)
 
 
@@ -498,9 +522,10 @@ def test_segment_seeds_are_distinct_and_deterministic() -> None:
 
     # Golden pin: the production roots for the declared stage seed 0. Moving
     # them is a spec-visible RNG change, never an accident.
-    assert seeds == (3757552657, 673228719, 3241444873)
-    assert len(seeds) == 3
-    assert len(set(seeds)) == 3
+    assert seeds == (3757552657, 673228719, 3241444873, 3685993406)
+    assert len(seeds) == 4
+    assert len(set(seeds)) == 4
+    assert seeds[:3] == module.was_wealth_segment_seeds(0, segments=3)
     assert seeds == module.was_wealth_segment_seeds(0)
     assert seeds != module.was_wealth_segment_seeds(1)
     assert all(isinstance(seed, int) for seed in seeds)

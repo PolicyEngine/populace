@@ -123,7 +123,10 @@ def test_support_bounds_tool_rounds_synthetic_donor_outward(tmp_path: Path) -> N
         "DVPriRntR8": [1, 2],
         "CTAmtR8": [1000, 1200],
         "HFINWNTR8_Sum": [-5, 50],
+        "HFINWNTR8_exSLC_Sum": [20, 40],
         "HFINWR8_SUM": [30, 40],
+        "HMortGR8": [1000, 0],
+        "Ten1R8": [2, 4],
         "DVhvalueR8": [100000, 200000],
         "DVHseValR8_sum": [1000, 2000],
         "DVBlDValR8_sum": [3000, 4000],
@@ -141,3 +144,5 @@ def test_support_bounds_tool_rounds_synthetic_donor_outward(tmp_path: Path) -> N
 
     assert payload["bounds"]["owned_land"] == [10.0, 100.0]
     assert payload["bounds"]["net_financial_wealth"] == [-5.0, 50.0]
+    assert payload["bounds"]["mortgage_debt"] == [0.0, 1000.0]
+    assert payload["bounds"]["consumer_debt"] == [0.0, 10.0]

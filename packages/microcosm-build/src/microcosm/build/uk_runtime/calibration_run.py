@@ -107,6 +107,7 @@ UK_LOCAL_GATE_SCOPE = (
 
 UK_SPINE_GATE_SCOPE = (
     "uk_stage_was_wealth_support",
+    "uk_stage_uc_deduction_attributes",
     "uk_stage_lcfs_consumption_support",
     "uk_stage_etb_vat_support",
     "uk_stage_etb_services_support",
@@ -139,6 +140,7 @@ UK_NATIONAL_GATE_SCOPE = (
     "uk_degenerate_release_surface",
     "uk_nonnegative_columns",
     "uk_uc_capital_coherence",
+    "uk_uc_deduction_combination_enum_domain",
     "uk_support",
     "uk_aggregate_admin",
     "uk_export_surface",

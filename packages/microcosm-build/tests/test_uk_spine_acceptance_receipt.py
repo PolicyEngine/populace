@@ -59,6 +59,12 @@ def _apply_pending_roster_transformations(
     assert roster[-1] == "age_tail"
     roster.remove("age_tail")
     roster.insert(1, "age_tail")
+
+    # #685 E9: uc_deduction_attributes lands directly after uc_capital_coherence.
+    assert "uc_deduction_attributes" not in roster
+    roster.insert(
+        roster.index("uc_capital_coherence") + 1, "uc_deduction_attributes"
+    )
     return tuple(roster)
 
 
@@ -68,6 +74,10 @@ def test_receipt_roster_is_the_production_plan():
     production_roster = _production_graph_stage_names()
 
     assert _apply_pending_roster_transformations(accepted_roster) == production_roster
+    # The E9 stage runs directly after the capital-coherence stage (#850).
+    assert production_roster.index("uc_deduction_attributes") == (
+        production_roster.index("uc_capital_coherence") + 1
+    )
     assert receipt["candidate"]["stage_count"] == len(accepted_roster)
 
 

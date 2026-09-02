@@ -1,6 +1,6 @@
 {
  "schema_version": 1,
- "scope_note": "Adjudicated intentional differences between the microcosm-built UK spine and the frozen enhanced-FRS incumbent (#686). The whole-spine comparison treats any difference beyond the #723 acceptance band that is not signed here as a defect, so every entry is scoped to the exact surface and columns where the difference is expected to appear: a too-broad entry would sign a real defect. Entries are permanent adjudications and carry no expiry; time-limited per-gate suppressions belong in input_mass_reviewed_exclusions.json, qrf_tail_reviewed_exclusions.json or degenerate_reviewed_exclusions.json instead, and an entry here points at one through its evidence field when both descend from the same adjudication. The twenty-nine beyond-band divergences measured or structurally expected against the re-pinned 1.56.16 reference are signed below, each scoped to the divergence actually observed rather than carried across on its prose classification, and each deliberately split so that no entry covers both columns where the spine is closer to its donor and columns where the incumbent is: the direction of the evidence is part of what is being signed. Donor figures quoted as magnitude evidence are survey-weighted shares and population means computed on each stage's own committed cleaning function over its own pinned donor tab, which is the convention that reproduces the E6 acceptance receipt's education figure exactly. The incumbent side of every figure is measured on the pinned 1.56.16 artifact itself (sha256 e433e532), not on a local rebuild: an earlier pass read the 1.56.14 published artifact, whose shares differ by up to 0.0045 and which flipped one verdict.",
+ "scope_note": "Adjudicated intentional differences between the microcosm-built UK spine and the frozen enhanced-FRS incumbent (#686). The whole-spine comparison treats any difference beyond the #723 acceptance band that is not signed here as a defect, so every entry is scoped to the exact surface and columns where the difference is expected to appear: a too-broad entry would sign a real defect. Entries are permanent adjudications and carry no expiry; time-limited per-gate suppressions belong in input_mass_reviewed_exclusions.json, qrf_tail_reviewed_exclusions.json or degenerate_reviewed_exclusions.json instead, and an entry here points at one through its evidence field when both descend from the same adjudication. The thirty-five beyond-band divergences measured or structurally expected against the re-pinned 1.56.16 reference are signed below, each scoped to the divergence actually observed rather than carried across on its prose classification, and each deliberately split so that no entry covers both columns where the spine is closer to its donor and columns where the incumbent is: the direction of the evidence is part of what is being signed. Donor figures quoted as magnitude evidence are survey-weighted shares and population means computed on each stage's own committed cleaning function over its own pinned donor tab, which is the convention that reproduces the E6 acceptance receipt's education figure exactly. The incumbent side of every figure is measured on the pinned 1.56.16 artifact itself (sha256 e433e532), not on a local rebuild: an earlier pass read the 1.56.14 published artifact, whose shares differ by up to 0.0045 and which flipped one verdict.",
  "differences": [
   {
    "id": "scottish-water-incumbent-nan-zeroing",
@@ -535,6 +535,156 @@
      }
     },
     "magnitude_provenance": "I1 dry-run bound from experiments/832-uc-reporter-receipts.md Part C: 4,428 unchanged base-channel reporter persons plus between zero and 3,299 one-person SPI reporter landings among 113,649 people implies share in [0.038962, 0.067990]. I5 actual (Part F, spine-m): 5,730 nonzero reporter records, share 0.050418, delta 0.006941 below the incumbent, inside the signed 0.0184 floor-distance; the above side of the structural range is unreached by the built artifact."
+   }
+  },
+  {
+   "id": "mortgage-debt-net-new-column",
+   "class": "net_new_column",
+   "scope": {
+    "surface": "nonzero_shares",
+    "columns": [
+     "mortgage_debt"
+    ],
+    "entities": [
+     "household"
+    ]
+   },
+   "expectation": "column_missing_in_reference",
+   "magnitude_evidence": "The fourth WAS wealth-chain segment now persists mortgage_debt from the HMortGR8 donor target. The pinned enhanced-FRS reference has no column with that name, so this is a structural candidate-only export. The I1 audit of the pinned round-8 donor measured a survey-weighted positive share of 0.3226 and a population mean of GBP 46,915 per household.",
+   "evidence": "experiments/685-net-new-stages-receipts.md#part-a--was-debt-source-audit",
+   "adjudicator": "juaristi22",
+   "adjudicated_on": "2026-09-02",
+   "quantitative": {
+    "structural": {
+     "expected_columns": [
+      "mortgage_debt"
+     ]
+    }
+   }
+  },
+  {
+   "id": "consumer-debt-net-new-column",
+   "class": "net_new_column",
+   "scope": {
+    "surface": "nonzero_shares",
+    "columns": [
+     "consumer_debt"
+    ],
+    "entities": [
+     "household"
+    ]
+   },
+   "expectation": "column_missing_in_reference",
+   "magnitude_evidence": "The fourth WAS wealth-chain segment now persists consumer_debt, defined as gross financial wealth less financial wealth net of all liabilities except student loans, clipped at zero. The pinned enhanced-FRS reference has no column with that name, so this is a structural candidate-only export. The I1 audit of the pinned round-8 donor measured a survey-weighted positive share of 0.5296 and a population mean of GBP 3,623 per household.",
+   "evidence": "experiments/685-net-new-stages-receipts.md#part-a--was-debt-source-audit",
+   "adjudicator": "juaristi22",
+   "adjudicated_on": "2026-09-02",
+   "quantitative": {
+    "structural": {
+     "expected_columns": [
+      "consumer_debt"
+     ]
+    }
+   }
+  },
+  {
+   "id": "uc-deduction-random-draw-net-new-column",
+   "class": "net_new_column",
+   "scope": {
+    "surface": "nonzero_shares",
+    "columns": [
+     "uc_deduction_random_draw"
+    ],
+    "entities": [
+     "benunit"
+    ]
+   },
+   "expectation": "column_missing_in_reference",
+   "magnitude_evidence": "The UC deduction-attribute stage persists its identity-keyed float32-rounded incidence draw so PolicyEngine-UK 2.92.1 derives the same diagnostic flag as the held latent attributes. The pinned enhanced-FRS reference has no column with that name. Realized licensed-spine figures are pending — I5 licensed acceptance.",
+   "evidence": "experiments/685-net-new-stages-receipts.md#part-b--uc-deduction-attribute-contract",
+   "adjudicator": "juaristi22",
+   "adjudicated_on": "2026-09-02",
+   "quantitative": {
+    "structural": {
+     "expected_columns": [
+      "uc_deduction_random_draw"
+     ]
+    }
+   }
+  },
+  {
+   "id": "uc-deduction-type-random-draw-net-new-column",
+   "class": "net_new_column",
+   "scope": {
+    "surface": "nonzero_shares",
+    "columns": [
+     "uc_deduction_type_random_draw"
+    ],
+    "entities": [
+     "benunit"
+    ]
+   },
+   "expectation": "column_missing_in_reference",
+   "magnitude_evidence": "The UC deduction-attribute stage persists its independent identity-keyed float32-rounded type draw so PolicyEngine-UK 2.92.1 derives the same combination as the build. The pinned enhanced-FRS reference has no column with that name. Realized licensed-spine figures are pending — I5 licensed acceptance.",
+   "evidence": "experiments/685-net-new-stages-receipts.md#part-b--uc-deduction-attribute-contract",
+   "adjudicator": "juaristi22",
+   "adjudicated_on": "2026-09-02",
+   "quantitative": {
+    "structural": {
+     "expected_columns": [
+      "uc_deduction_type_random_draw"
+     ]
+    }
+   }
+  },
+  {
+   "id": "uc-latent-deduction-rate-net-new-column",
+   "class": "net_new_column",
+   "scope": {
+    "surface": "nonzero_shares",
+    "columns": [
+     "uc_latent_deduction_rate"
+    ],
+    "entities": [
+     "benunit"
+    ]
+   },
+   "expectation": "column_missing_in_reference",
+   "magnitude_evidence": "The UC deduction-attribute stage persists region-conditioned, pre-cap latent deduction demand on every benefit unit from the pinned DWP distribution. The pinned enhanced-FRS reference has no column with that name; its nonzero share is a latent-attribute statistic, not a claimant-incidence statistic. Realized licensed-spine figures are pending — I5 licensed acceptance.",
+   "evidence": "experiments/685-net-new-stages-receipts.md#part-b--uc-deduction-attribute-contract",
+   "adjudicator": "juaristi22",
+   "adjudicated_on": "2026-09-02",
+   "quantitative": {
+    "structural": {
+     "expected_columns": [
+      "uc_latent_deduction_rate"
+     ]
+    }
+   }
+  },
+  {
+   "id": "uc-deduction-combination-net-new-column",
+   "class": "net_new_column",
+   "scope": {
+    "surface": "nonzero_shares",
+    "columns": [
+     "uc_deduction_combination"
+    ],
+    "entities": [
+     "benunit"
+    ]
+   },
+   "expectation": "column_missing_in_reference",
+   "magnitude_evidence": "The UC deduction-attribute stage persists the PolicyEngine-UK deduction-combination enum member name, with NONE exactly where latent demand is zero. The pinned enhanced-FRS reference has no column with that name. Realized licensed-spine figures are pending — I5 licensed acceptance.",
+   "evidence": "experiments/685-net-new-stages-receipts.md#part-b--uc-deduction-attribute-contract",
+   "adjudicator": "juaristi22",
+   "adjudicated_on": "2026-09-02",
+   "quantitative": {
+    "structural": {
+     "expected_columns": [
+      "uc_deduction_combination"
+     ]
+    }
    }
   }
  ]

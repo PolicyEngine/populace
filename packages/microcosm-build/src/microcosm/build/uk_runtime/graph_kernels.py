@@ -82,6 +82,7 @@ _STAGE_MODULES = {
     "hmrc_spi_income_spine": "spi_spine",
     "uc_reporter_redraw": "uc_reporter_redraw",
     "uc_capital_coherence": "uc_capital_coherence",
+    "uc_deduction_attributes": "uc_deduction_attributes",
     "cgt_incidence_clone": "cgt_structure",
     "cgt_band_donors": "cgt_structure",
     "hmrc_cgt_gains_spine": "cgt_imputation",
@@ -275,7 +276,7 @@ def _fixture_cgt_distribution(path: Path):
 def _fixture_descriptor(
     source: Path,
 ) -> tuple[Mapping[str, object], dict[str, SourceStageSpec]]:
-    """Parse the H2 bundle's descriptor and its 26 stage specs, keyed by name."""
+    """Parse the H2 bundle's descriptor and its 27 stage specs, keyed by name."""
 
     from microcosm.build.source_manifest import SourceStageSpec
 
@@ -299,7 +300,7 @@ def _fixture_descriptor(
         missing = sorted(set(_STAGE_MODULES) - set(stages))
         extra = sorted(set(stages) - set(_STAGE_MODULES))
         raise ValueError(
-            "UK parity fixture must describe the current 26-stage spine "
+            "UK parity fixture must describe the current 27-stage spine "
             f"(missing={missing}, extra={extra})."
         )
     return descriptor, stages
@@ -339,6 +340,7 @@ def _fixture_implementations(source: Path) -> Mapping[str, object]:
     from .student_loans import UKStudentLoansStageTransform
     from .take_up_contract import load_uk_take_up_contract
     from .uc_capital_coherence import UKUCCapitalCoherenceStageTransform
+    from .uc_deduction_attributes import UKUCDeductionAttributesStageTransform
     from .uc_reporter_redraw import UKUCReporterRedrawStageTransform
     from .was_wealth import UKWASWealthStageTransform
 
@@ -453,6 +455,9 @@ def _fixture_implementations(source: Path) -> Mapping[str, object]:
             ),
             "uc_capital_coherence": UKUCCapitalCoherenceStageTransform(
                 stage=stages["uc_capital_coherence"]
+            ),
+            "uc_deduction_attributes": UKUCDeductionAttributesStageTransform(
+                stage=stages["uc_deduction_attributes"]
             ),
             "cgt_incidence_clone": UKCGTIncidenceCloneStageTransform(
                 stage=stages["cgt_incidence_clone"]

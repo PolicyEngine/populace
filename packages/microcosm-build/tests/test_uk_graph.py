@@ -161,9 +161,10 @@ def test_uk_spine_graph_contains_manifest_stages_and_named_exclusions() -> None:
     graph = uk_spine_graph(spec)
     ids = {node.id for node in graph.nodes}
 
-    # 27 with the #832 uc_reporter_redraw stage; the two named exclusions are
-    # the certified-pair alternatives, not steps of this pipeline.
-    assert len(expected) == 27
+    # 28 with the #832 uc_reporter_redraw and #685 uc_deduction_attributes
+    # stages; the two named exclusions are the certified-pair alternatives,
+    # not steps of this pipeline.
+    assert len(expected) == 28
     assert UK_SPINE_EXCLUSIONS == {
         "frs_hmrc_retained_leaves",
         "hmrc_spi_income",

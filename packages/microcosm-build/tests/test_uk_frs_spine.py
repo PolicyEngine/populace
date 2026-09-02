@@ -1689,6 +1689,10 @@ def test_e8_manifest_seeds_all_reach_the_build_sidecar_harvester() -> None:
 
     assert declared["cgt_incidence_clone"] == {"cgt_prior_amount": 0}
     assert declared["uc_capital_coherence"] == {"frs_benunit_capital": 0}
+    assert declared["uc_deduction_attributes"] == {
+        "uc_deduction_random_draw": 0,
+        "uc_deduction_type_random_draw": 0,
+    }
     assert declared["cgt_band_donors"] == {"stack_band_donor_households": 1}
     assert declared["hmrc_cgt_gains_spine"] == {"within_band_draws": 552}
     assert declared["salary_sacrifice"] == {
@@ -1932,7 +1936,7 @@ def test_in_kind_benefits_map_from_the_raw_person_tapes(tmp_path: Path) -> None:
 
 def test_boundary_evidence_asks_only_the_stages_that_have_run() -> None:
     """The first licensed battery run failed at the assembled boundary because
-    the evidence provider consulted all 26 implementations, and an un-run
+    the evidence provider consulted all 27 implementations, and an un-run
     stage's checkpoint hook (correctly) refuses. Each boundary must offer only
     its executed prefix — an un-run stage being consulted is the regression.
     """

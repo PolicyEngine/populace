@@ -215,7 +215,7 @@ def test_h2_uk_spine_parity(tmp_path: Path) -> None:
     engine tier (``requires_uk``) and skips in the engine-free fast lane.
 
     Expects ``packages/microcosm-graph/tests/fixtures/parity/uk_spine/`` with
-    ``uk_spine.json`` and ``sources/``; both sides run the 27 transforms from
+    ``uk_spine.json`` and ``sources/``; both sides run the 28 transforms from
     those sources in this process, root included, because the root weights
     differ at the last bit between machines. Stage order comes
     from declared ``consumes``: the assertion below is that the compiled
@@ -245,7 +245,7 @@ def test_h2_uk_spine_parity(tmp_path: Path) -> None:
     graph = uk_spine_graph()
     assert graph_from_json((UK_SPINE_PARITY / "uk_spine.json").read_text()) == graph
     compiled = compile_graph(graph)
-    assert len(compiled.order) >= 28, "a CREATE node plus the 27 spine stages"
+    assert len(compiled.order) >= 29, "a CREATE node plus the 28 spine stages"
     assert all(
         set(compiled.predecessors[node_id]) <= set(compiled.order[:index])
         for index, node_id in enumerate(compiled.order)

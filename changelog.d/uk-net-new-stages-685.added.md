@@ -1,0 +1,2 @@
+Add UK UC deduction attributes and the mortgage- and consumer-debt segment of
+the WAS wealth chain, with source, support, graph, and release-gate contracts. Two generic operation kinds join the source vocabulary (`map_uniform_to_banded_rate`, `map_uniform_to_categorical`), and four benunit columns join the reviewed UK export surface (`uc_deduction_random_draw`, `uc_deduction_type_random_draw`, `uc_latent_deduction_rate`, `uc_deduction_combination`).

@@ -123,6 +123,8 @@ ALLOWED_SOURCE_OPERATION_KINDS = frozenset(
         "iterative_proportional_fit",
         "map_columns",
         "map_coded_amounts",
+        "map_uniform_to_banded_rate",
+        "map_uniform_to_categorical",
         "materialize_hmrc_income_bands_fail_closed",
         "materialize_rules_engine_predictors",
         "rank_preserving_allocation",
