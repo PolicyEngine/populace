@@ -140,7 +140,7 @@ class TestE7Receipt:
 
 
 class TestE6Receipt:
-    def test_nhs_receipt_uses_stage_time_top_coded_age(
+    def test_nhs_receipt_uses_stage_time_disaggregated_age(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         class _FakeModel:
@@ -206,7 +206,6 @@ class TestE6Receipt:
                     "person_id": [1],
                     "person_benunit_id": [10],
                     "person_household_id": [100],
-                    "person_source_id": ["source-1"],
                     "age": [float(UK_AGE_TOP_CODE)],
                     "gender": ["FEMALE"],
                 }
@@ -217,6 +216,17 @@ class TestE6Receipt:
             ),
             time_period="2024",
             weight_kind=WeightKind.DESIGN,
+        )
+        disaggregate_uk_age_top_code(
+            frame,
+            band_populations={
+                ("MALE", "80_84"): 1.0,
+                ("MALE", "85_89"): 1.0,
+                ("MALE", "90_plus"): 1.0,
+                ("FEMALE", "80_84"): 1.0,
+                ("FEMALE", "85_89"): 1e9,
+                ("FEMALE", "90_plus"): 1.0,
+            },
         )
         stage = SourceStageSpec(
             stage="etb_services",
@@ -253,17 +263,6 @@ class TestE6Receipt:
         frame = UKETBServicesStageTransform(
             stage=stage, engine=_FakeEngine(), donor=donor
         )(frame)
-        disaggregate_uk_age_top_code(
-            frame,
-            band_populations={
-                ("MALE", "80_84"): 1.0,
-                ("MALE", "85_89"): 1.0,
-                ("MALE", "90_plus"): 1.0,
-                ("FEMALE", "80_84"): 1.0,
-                ("FEMALE", "85_89"): 1e9,
-                ("FEMALE", "90_plus"): 1.0,
-            },
-        )
 
         person = frame.table("person")
         household = frame.table("household")
@@ -275,57 +274,73 @@ class TestE6Receipt:
         )
         stored = person.set_index("person_id")[list(UK_NHS_OUTPUT_COLUMNS)]
         final_age_nhs.index = stored.index
+        for column in UK_NHS_OUTPUT_COLUMNS:
+            assert np.allclose(
+                stored[column].to_numpy(dtype=float),
+                final_age_nhs[column].to_numpy(dtype=float),
+            )
+
+        clamped_person = person.copy()
+        clamped_person["age"] = np.minimum(
+            pd.to_numeric(clamped_person["age"], errors="raise").to_numpy(
+                dtype=float
+            ),
+            float(UK_AGE_TOP_CODE),
+        )
+        clamped_nhs = allocate_nhs_by_age_gender(
+            clamped_person,
+            household_weights=frame.weights_for("household").values,
+            household=household,
+            nhs_table=None,
+        )
+        clamped_nhs.index = stored.index
         assert any(
             not np.allclose(
                 stored[column].to_numpy(dtype=float),
-                final_age_nhs[column].to_numpy(dtype=float),
+                clamped_nhs[column].to_numpy(dtype=float),
             )
             for column in UK_NHS_OUTPUT_COLUMNS
         )
 
         receipt = _load_tool().e6_identity_receipt(frame, permutation_seed=7)
-        assert receipt["nhs_age_basis"] == "stage_time_top_coded"
-        assert receipt["nhs_age_top_code"] == UK_AGE_TOP_CODE
+        assert receipt["nhs_age_basis"] == "stage_time_disaggregated"
         assert receipt["matches_stored_columns"] is True
         assert receipt["stored_column_mismatches"] == {}
 
 
-def test_e8_carrier_recompute_is_invariant_to_the_age_tail_rewrite():
-    """The donor stage picked carriers before age_tail ran; the recompute must too.
+def test_e8_carrier_recompute_uses_disaggregated_age():
+    """The donor stage and its receipt both use final disaggregated age.
 
-    Two adults tied at the top code at stage time: the stage's carrier is the
-    stable-order winner of that tie. After age_tail lifts one of them to 90,
-    an unclamped recompute flips the tie to the lifted person — the mechanism
-    behind the 255-donor mismatch on the first 25-stage ladder run — while the
-    stage-time clamp reproduces the stage's own choice exactly.
+    Two adults tie on the former top-coded surface, while disaggregation lifts
+    one to 90. The selected carrier must be the lifted person; clamping back to
+    80 demonstrates that the basis choice is load-bearing.
     """
 
     from microcosm.build.uk_runtime.age_tail import UK_AGE_TOP_CODE as TOP
     from microcosm.build.uk_runtime.cgt_structure import _oldest_adult_indices
 
-    stage_time = pd.DataFrame(
+    top_coded = pd.DataFrame(
         {
             "person_id": [0, 1],
             "person_household_id": [7, 7],
             "age": [float(TOP), float(TOP)],
         }
     )
-    after_age_tail = stage_time.assign(age=[float(TOP), 90.0])
+    disaggregated = top_coded.assign(age=[float(TOP), 90.0])
 
-    stage_choice = _oldest_adult_indices(stage_time, household_ids={7})
+    stage_choice = _oldest_adult_indices(disaggregated, household_ids={7})
+    # The lifted person (row 1) wins outright; the top-coded tie would have
+    # gone to row 0 on the stable person_id order.
+    assert stage_choice.tolist() == [1]
 
-    unclamped = _oldest_adult_indices(after_age_tail, household_ids={7})
-    assert unclamped.tolist() != stage_choice.tolist()
-
-    clamped = after_age_tail.assign(
+    clamped = disaggregated.assign(
         age=np.minimum(
-            pd.to_numeric(after_age_tail["age"], errors="coerce").to_numpy(
+            pd.to_numeric(disaggregated["age"], errors="coerce").to_numpy(
                 dtype=float
             ),
             float(TOP),
         )
     )
-    assert (
-        _oldest_adult_indices(clamped, household_ids={7}).tolist()
-        == stage_choice.tolist()
+    assert _oldest_adult_indices(clamped, household_ids={7}).tolist() != (
+        stage_choice.tolist()
     )

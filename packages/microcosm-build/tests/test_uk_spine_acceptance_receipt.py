@@ -2,10 +2,10 @@
 
 microcosm#771: the previous acceptance evidence quietly described a 24-stage
 build after the plan had grown to 25. This binder makes that class of drift a
-CI failure. The #828 and #832 stages are deliberately pending the licensed I5
-rebuild, so the historical receipt stays truthful while the test pins the two
-reviewed roster differences from the current driver. I5 restores strict roster
-equality when it re-mints the receipt.
+CI failure. The #828/#832 insertions and #785 reorder are deliberately pending
+their licensed re-mints, so the historical receipt stays truthful while the
+test composes only those reviewed transformations. Each transformation pins
+the receipt state it expects and must be deleted when that re-mint lands.
 """
 
 from __future__ import annotations
@@ -41,16 +41,33 @@ def _production_graph_stage_names() -> tuple[str, ...]:
     return tuple(node_id for node_id in compiled.order if node_id in declared)
 
 
+def _apply_pending_roster_transformations(
+    accepted_roster: tuple[str, ...],
+) -> tuple[str, ...]:
+    roster = list(accepted_roster)
+
+    # #832 I5: both UC insertions are one pending receipt transformation.
+    assert "uc_reporter_redraw" not in roster
+    assert "uc_capital_coherence" not in roster
+    cgt_index = roster.index("cgt_incidence_clone")
+    roster[cgt_index:cgt_index] = [
+        "uc_reporter_redraw",
+        "uc_capital_coherence",
+    ]
+
+    # #785 L3: the historical receipt still has age_tail at the spine tail.
+    assert roster[-1] == "age_tail"
+    roster.remove("age_tail")
+    roster.insert(1, "age_tail")
+    return tuple(roster)
+
+
 def test_receipt_roster_is_the_production_plan():
     receipt = _receipt()
     accepted_roster = tuple(receipt["candidate"]["stage_roster"])
     production_roster = _production_graph_stage_names()
-    expected_extra_stages = {"uc_capital_coherence", "uc_reporter_redraw"}
 
-    assert set(production_roster) - set(accepted_roster) == expected_extra_stages
-    assert tuple(
-        stage for stage in production_roster if stage not in expected_extra_stages
-    ) == accepted_roster
+    assert _apply_pending_roster_transformations(accepted_roster) == production_roster
     assert receipt["candidate"]["stage_count"] == len(accepted_roster)
 
 
@@ -64,6 +81,9 @@ def test_receipt_identity_and_verdicts_are_the_accepted_ones():
     for check, row in ladder.items():
         assert row["identical_under_permutation"] is True, check
         assert row["matches_stored_columns"] is True, check
+    # The historical spine-i receipt remains truthful. The #785 L3 re-mint
+    # flips both fields to stage_time_disaggregated and deletes the matching
+    # pending roster transformation above.
     assert ladder["e6"]["nhs_age_basis"] == "stage_time_top_coded"
     assert ladder["e8"]["donor_age_basis"] == "stage_time_top_coded"
     parity = receipt["strict_parity"]

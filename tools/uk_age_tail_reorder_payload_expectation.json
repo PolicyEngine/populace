@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "scope_note": "#785 spine-m to spine-n payload contract, defined on the donor-excluded, row-aligned slice: drop every household flagged household_is_cgt_band_donor (with its benefit units and persons) from both artifacts before running compare_uk_h5_payload.py, so every table's row counts agree and column values are compared position-wise. Any unlisted value, dtype, structural, store-key, or root-attribute difference is expected_byte_equal and therefore unexpected. The reselected CGT donor set and its entity-count deltas are Receipt 1's separate report. Scoped row-domain claims still require the companion L2 slice checks because compare_uk_h5_payload.py discloses counts, not unit-row identities.",
+  "default_expectation": "expected_byte_equal",
+  "expected_byte_equal": [
+    {
+      "entity": "person",
+      "columns": [
+        "age"
+      ],
+      "scope": "every row of the donor-excluded slice; clones copy the donor age",
+      "reason": "Re-keying to person_id must preserve the final age surface exactly."
+    },
+    {
+      "entity": "household",
+      "columns": [
+        "__row_count__"
+      ],
+      "scope": "whole artifact",
+      "reason": "CGT donor selection changes person and benunit fan-out, but the household count remains pinned."
+    }
+  ],
+  "expected_changed": [
+    {
+      "entity": "person",
+      "columns": [
+        "a_and_e_visits",
+        "admitted_patient_visits",
+        "outpatient_visits",
+        "nhs_a_and_e_spending",
+        "nhs_admitted_patient_spending",
+        "nhs_outpatient_spending"
+      ],
+      "scope": "persons originating in the FRS age-80 pile, including later whole-table clones",
+      "reason": "ETB services now prices NHS use on the disaggregated stage-time age surface."
+    },
+    {
+      "entity": "person",
+      "columns": [
+        "employment_income",
+        "self_employment_income",
+        "savings_interest_income",
+        "dividend_income",
+        "private_pension_income",
+        "property_income",
+        "other_investment_income",
+        "gift_aid",
+        "charitable_investment_gifts",
+        "hmrc_spi_pay",
+        "hmrc_spi_employment_benefits",
+        "hmrc_spi_employment_expenses",
+        "hmrc_spi_incapacity_benefit_income",
+        "hmrc_spi_other_social_security_income",
+        "hmrc_spi_taxable_termination_pay",
+        "hmrc_spi_unemployment_benefit_income",
+        "hmrc_spi_miscellaneous_employment_income",
+        "hmrc_spi_other_income",
+        "hmrc_spi_state_pension_income",
+        "hmrc_spi_employed_income",
+        "hmrc_spi_total_earned_income",
+        "hmrc_spi_total_investment_income",
+        "hmrc_spi_assessable_income"
+      ],
+      "scope": "stage-1 SPI recipient rows whose stage-time age moved out of the age-80 pile, plus base rows in the pile for the dividend_income base redraw",
+      "reason": "SPI stage 1 is recipient-row-local and age-conditioned."
+    },
+    {
+      "entity": "person",
+      "columns": [
+        "personal_pension_contributions",
+        "employer_pension_contributions",
+        "tax_free_savings_income",
+        "pension_credit_reported",
+        "child_benefit_reported",
+        "housing_benefit_reported",
+        "income_support_reported",
+        "working_tax_credit_reported",
+        "child_tax_credit_reported",
+        "attendance_allowance_reported",
+        "state_pension_reported",
+        "dla_sc_reported",
+        "dla_m_reported",
+        "pip_m_reported",
+        "pip_dl_reported",
+        "sda_reported",
+        "carers_allowance_reported",
+        "iidb_reported",
+        "afcs_reported",
+        "bsp_reported",
+        "winter_fuel_allowance_reported",
+        "council_tax_benefit_reported",
+        "jsa_contrib_reported",
+        "jsa_income_reported",
+        "esa_contrib_reported",
+        "esa_income_reported",
+        "aa_category",
+        "dla_sc_category",
+        "dla_m_category",
+        "pip_m_category",
+        "pip_dl_category",
+        "is_disabled_for_benefits",
+        "is_enhanced_disabled_for_benefits",
+        "is_severely_disabled_for_benefits"
+      ],
+      "scope": "SPI support-channel persons; the stage-2 model is retrained on the disaggregated base-FRS age surface and the SPI disability refresh follows the refilled reported amounts",
+      "reason": "The joint stage-2 QRF and its disability refresh may move across the full SPI recipient channel."
+    },
+    {
+      "entity": "person",
+      "columns": [
+        "universal_credit_reported"
+      ],
+      "scope": "SPI support-channel persons only; base-channel rows remain byte-equal",
+      "reason": "The stage-2 fill changes and the stage-19 benefit-unit reporter redraw consumes those changed incomes."
+    },
+    {
+      "entity": "person",
+      "columns": [
+        "employee_pension_contributions",
+        "pension_contributions_via_salary_sacrifice"
+      ],
+      "scope": "frame-wide target rows and the scalar-coupled donor conversion set",
+      "reason": "Salary sacrifice trains on age and couples its donor conversion rate globally."
+    },
+    {
+      "entity": "benunit",
+      "columns": [
+        "frs_benunit_capital",
+        "uc_reported_capital",
+        "would_claim_uc"
+      ],
+      "scope": "SPI post-fill reporter benefit units only",
+      "reason": "UC capital coherence follows the changed stage-19 SPI reporter set."
+    },
+    {
+      "entity": "person",
+      "columns": [
+        "capital_gains"
+      ],
+      "scope": "CGT incidence carriers whose oldest-adult tie moved, and every gainer downstream of the reshuffled gains-stage draw stream",
+      "reason": "Disaggregated oldest-adult ages change carrier ties, and the positional gains-stage stream reshuffles behind them."
+    }
+  ]
+}

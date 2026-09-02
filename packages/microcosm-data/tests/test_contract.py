@@ -137,13 +137,13 @@ def _trusted_terminal_gate_signing_key(monkeypatch) -> None:
 UK_GATE_BATTERY_PRODUCER = "microcosm.build.gate_battery"
 UK_GATE_BATTERY_SIGNING_KEY_ENV = "MICROCOSM_UK_TERMINAL_GATE_SIGNING_KEY"
 UK_GATE_BATTERY_POLICY_SHA256 = (
-    "bcbcfd552424313b0843bc68ad64afea04c3b4146b01458cc9fdaf54b85aea82"
+    "6916c207d1b32c20d372f9555374e1968298712f28163e9109020e659a05bbb3"
 )
 UK_GATE_BATTERY_GATES_MANIFEST_SHA256 = (
-    "76c861d48d48d73fd8f18f3d5cddac2855294c2839105ca2b6ac9a8a9d4b5f2f"
+    "6f4566944b2e68b11c1dc6faa74cdcdcda998ca259b621440e1853b17501517f"
 )
 UK_GATE_BATTERY_SPEC_FINGERPRINT = (
-    "dfbad2aa2930ef7e615742bd43bccd6cadaeb77ceb46f9161bb81b715dda20aa"
+    "e31fe1f929d9fc7c2f0da9c4ca7650fc2f3350e74da379a09d6b4c31f931ef47"
 )
 UK_GATE_BATTERY_DEGENERATE_EVIDENCE_SHA256 = (
     "d0d024043132fa07c378c393dbe2b24fe99bf19e876bcc39997d2c80cc9bd4f6"
@@ -213,7 +213,7 @@ UK_GATE_BATTERY_ENTRIES = {
         "transferred",
         None,
     ),
-    "uk_stage_age_tail_targets": ("stage_health", "transferred", None),
+    "uk_stage_age_tail_targets": ("stage_health", "assembled", None),
     "uk_ledger_compile_parity_local_incumbent_2025": (
         "ledger_compile_parity",
         "preflight",

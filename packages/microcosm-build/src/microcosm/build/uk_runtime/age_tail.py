@@ -13,11 +13,16 @@ band populations (the same chronicle facts the calibration targets bind, so
 the imputation source and the target denominators cannot drift apart). The
 draw is:
 
-- keyed on ``person_source_id``, so a household and its capital-gains clone
-  twin receive the same age and the payload-identity discipline holds;
+- keyed on the base-row ``person_id`` before clone provenance exists;
 - deterministic under a declared seed (sha256 counter stream, no global RNG);
 - sex-specific, using the MALE/FEMALE 80-84 / 85-89 / 90+ populations as an
   inverse CDF, with a uniform integer age within the drawn band.
+
+The stage runs immediately after ``frs_spine``, before every imputation that
+conditions on age. Later support and capital-gains stages clone whole rows, so
+each clone copies its donor's already-disaggregated age. A runtime guard
+refuses a frame that already carries ``person_source_id``: clone provenance is
+proof that the position contract has been violated.
 
 Ages are assigned, not weighted, toward the ONS distribution: the achieved
 weighted shares land near the ONS shares by construction and calibration
@@ -26,12 +31,9 @@ rather than tautologies.
 
 Written for the #623 assessment runner, proven over its nine-run calibration
 campaign, and ported here as the declarative WS-E source stage its docstring
-always said it would become. In the spine it runs after ``student_loans`` —
-the position the campaign exercised, downstream of everything that consumes
-``age``, so imputation conditioning is unchanged and the stage's whole
-effect is the pile's disaggregation. The band populations come from the
-committed ``ons_age_tail_band_populations.json`` resource, each cell
-carrying the register target id it must agree with.
+always said it would become. The band populations come from the committed
+``ons_age_tail_band_populations.json`` resource, each cell carrying the
+register target id it must agree with.
 """
 
 from __future__ import annotations
@@ -149,6 +151,10 @@ def disaggregate_uk_age_top_code(
     """
 
     person = frame.table("person")
+    if "person_source_id" in person.columns:
+        raise ValueError(
+            "age_tail must run before person_source_id clone provenance exists."
+        )
     ages = pd.to_numeric(person["age"], errors="raise").to_numpy(dtype=float)
     if (ages > top_code).any():
         raise ValueError(
@@ -179,16 +185,16 @@ def disaggregate_uk_age_top_code(
         shares = np.asarray(populations) / sum(populations)
         cdf[gender] = np.cumsum(shares)
 
-    source_ids = person["person_source_id"].to_numpy()
+    person_ids = person["person_id"].to_numpy()
     new_ages = ages.copy()
     assigned_counts: dict[tuple[str, str], int] = {}
     for index in np.flatnonzero(piled):
         gender = genders[index]
-        band_draw = _unit_draw(source_ids[index], seed, "band")
+        band_draw = _unit_draw(person_ids[index], seed, "band")
         band_index = int(np.searchsorted(cdf[gender], band_draw, side="right"))
         band_index = min(band_index, len(band_names) - 1)
         name, low, width = UK_AGE_TAIL_BANDS[band_index]
-        within_draw = _unit_draw(source_ids[index], seed, "within")
+        within_draw = _unit_draw(person_ids[index], seed, "within")
         new_ages[index] = low + int(within_draw * width)
         key = (gender, name)
         assigned_counts[key] = assigned_counts.get(key, 0) + 1
@@ -232,7 +238,7 @@ def disaggregate_uk_age_top_code(
             f"{gender}:{band}": float(value)
             for (gender, band), value in sorted(band_populations.items())
         },
-        "draw_key": "person_source_id (clone-twin consistent)",
+        "draw_key": "person_id (base rows only; clones copy the donor age)",
     }
 
 
@@ -255,7 +261,7 @@ def _assert_age_tail_stage_parameters(stage: SourceStageSpec) -> None:
             for name, low, width in UK_AGE_TAIL_BANDS
         ],
         "seed": UK_AGE_TAIL_DECLARED_SEEDS["age"],
-        "draw_key": "person_source_id",
+        "draw_key": "person_id",
         "salt_streams": ["band", "within"],
     }
     declared = {"kind": operations[0].kind, **parameters}

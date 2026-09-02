@@ -3,9 +3,9 @@
 The stage exists because the licensed FRS records no age above 80, so the
 85+ population targets are structurally unbindable. These tests pin the
 properties that make its draw safe to run inside the spine: it is keyed on
-the source identity (so clone twins agree), it is deterministic under a
-declared seed, it moves nobody out of the 80+ population, and it refuses
-rather than guesses when its preconditions do not hold.
+the base person identity before clone provenance exists, it is deterministic
+under a declared seed, it moves nobody out of the 80+ population, and it
+refuses rather than guesses when its preconditions do not hold.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import microcosm.build.uk_runtime.age_tail as age_tail_runtime
 from microcosm.build.source_manifest import SourceManifest
 from microcosm.build.uk_runtime.age_tail import (
     UK_AGE_TAIL_BANDS,
@@ -40,7 +41,7 @@ _BANDS = {
 }
 
 
-def _frame(*, n_piled: int = 40, clone_twins: bool = False):
+def _frame(*, n_piled: int = 40):
     """A minimal UK national frame with a top-code pile."""
 
     ages = [30.0, 55.0] + [float(UK_AGE_TOP_CODE)] * n_piled
@@ -49,19 +50,11 @@ def _frame(*, n_piled: int = 40, clone_twins: bool = False):
     ]
     count = len(ages)
     person_ids = list(range(1, count + 1))
-    source_ids = [f"s{index}" for index in person_ids]
-    if clone_twins:
-        # A clone twin shares its original's source id *and* its sex — the
-        # band CDF is sex-specific, so a twin with a different gender would
-        # legitimately draw a different band.
-        source_ids[-1] = source_ids[-2]
-        genders[-1] = genders[-2]
     person = pd.DataFrame(
         {
             "person_id": person_ids,
             "person_benunit_id": person_ids,
             "person_household_id": person_ids,
-            "person_source_id": source_ids,
             "age": ages,
             "gender": genders,
         }
@@ -77,6 +70,30 @@ def _frame(*, n_piled: int = 40, clone_twins: bool = False):
         time_period="2024",
         weight_kind=WeightKind.DESIGN,
     )
+
+
+def _person_source_id_keyed_reference_ages(frame, *, seed: int = 0) -> np.ndarray:
+    """Reproduce the former key path for equal person/source digest inputs."""
+
+    person = frame.table("person")
+    ages = person["age"].to_numpy(dtype=float).copy()
+    genders = person["gender"].astype(str).to_numpy()
+    source_ids = person["person_source_id"].to_numpy()
+    cdf = {}
+    for gender in ("MALE", "FEMALE"):
+        populations = np.asarray(
+            [_BANDS[(gender, name)] for name, _, _ in UK_AGE_TAIL_BANDS],
+            dtype=float,
+        )
+        cdf[gender] = np.cumsum(populations / populations.sum())
+    for index in np.flatnonzero(ages == UK_AGE_TOP_CODE):
+        band_draw = age_tail_runtime._unit_draw(source_ids[index], seed, "band")
+        band_index = int(np.searchsorted(cdf[genders[index]], band_draw, side="right"))
+        band_index = min(band_index, len(UK_AGE_TAIL_BANDS) - 1)
+        _, low, width = UK_AGE_TAIL_BANDS[band_index]
+        within_draw = age_tail_runtime._unit_draw(source_ids[index], seed, "within")
+        ages[index] = low + int(within_draw * width)
+    return ages
 
 
 class TestDraw:
@@ -115,14 +132,20 @@ class TestDraw:
             second.table("person")["age"].to_numpy(),
         )
 
-    def test_clone_twins_receive_the_same_age(self) -> None:
-        # The capital-gains clone shares its original's source id, so the two
-        # rows must agree or the payload-identity discipline breaks.
-        frame = _frame(n_piled=40, clone_twins=True)
-        disaggregate_uk_age_top_code(frame, band_populations=_BANDS)
-        person = frame.table("person")
-        by_source = person.groupby("person_source_id")["age"].nunique()
-        assert int(by_source.max()) == 1
+    def test_person_id_key_matches_the_source_keyed_reference(self) -> None:
+        # Base rows copy person_id verbatim into person_source_id when the SPI
+        # channel is created. Equal digest inputs must therefore reproduce the
+        # former final-age draw exactly; later clones copy that rewritten age.
+        candidate = _frame(n_piled=120)
+        reference = _frame(n_piled=120)
+        reference.table("person")["person_source_id"] = reference.table("person")[
+            "person_id"
+        ]
+        expected = _person_source_id_keyed_reference_ages(reference)
+
+        disaggregate_uk_age_top_code(candidate, band_populations=_BANDS)
+
+        assert np.array_equal(candidate.table("person")["age"], expected)
 
     def test_the_draw_follows_the_band_populations(self) -> None:
         # A degenerate CDF that puts all mass on 90+ must send the whole pile
@@ -141,10 +164,18 @@ class TestDraw:
         assert receipt["top_code"] == UK_AGE_TOP_CODE
         assert sum(receipt["assigned_unweighted"].values()) == 60
         assert set(receipt["achieved_weighted"]) == {"MALE", "FEMALE"}
-        assert receipt["draw_key"].startswith("person_source_id")
+        assert receipt["draw_key"] == (
+            "person_id (base rows only; clones copy the donor age)"
+        )
 
 
 class TestRefusals:
+    def test_clone_provenance_refuses_a_late_position(self) -> None:
+        frame = _frame(n_piled=10)
+        frame.table("person")["person_source_id"] = frame.table("person")["person_id"]
+        with pytest.raises(ValueError, match="before person_source_id"):
+            disaggregate_uk_age_top_code(frame, band_populations=_BANDS)
+
     def test_an_already_disaggregated_surface_is_refused(self) -> None:
         frame = _frame(n_piled=10)
         disaggregate_uk_age_top_code(frame, band_populations=_BANDS)

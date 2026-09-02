@@ -38,7 +38,7 @@
       ],
       "grain": "person",
       "nonnegative_outputs": [],
-      "notes": "The licensed FRS records no age above 80, so every 80+ person arrives piled at exactly 80 and the 85-89 and 90+ population targets are structurally unbindable; the incumbent shares the defect. Each piled person draws a band from the sex-specific ONS inverse CDF and a uniform integer age within it, keyed on person_source_id so a household and its capital-gains clone twin receive the same age. Runs after student_loans \u2014 downstream of every stage that conditions on age, the position the",
+      "notes": "The licensed FRS records no age above 80, so every 80+ person arrives piled at exactly 80 and the 85-89 and 90+ population targets are structurally unbindable; the incumbent shares the defect. Each piled base person draws a band from the sex-specific ONS inverse CDF and a uniform integer age within it, keyed on person_id. Runs immediately after frs_spine, before every stage that conditions on age, so all age-conditioned imputations derive from the disaggregated surface. The stage precedes person_source_id provenance; later support and capital-gains clones copy the donor's rewritten age, preserving the #623 final-age identity invariant. Ages are assigned toward the ONS distribution; calibration still owns the totals.",
       "operations": [
         {
           "bands": [
@@ -58,7 +58,7 @@
               "width": 8
             }
           ],
-          "draw_key": "person_source_id",
+          "draw_key": "person_id",
           "kind": "disaggregate_top_coded_ages",
           "output": "age",
           "reason": "Age disaggregation rewrites an existing person column in place; no rows move, no weights change, and total household mass is conserved.",

@@ -996,7 +996,19 @@ def _build_implementations(
 
     def capture_root(frame: Frame) -> Frame:
         result = root_transform(frame)
-        root_capture["frame"] = result
+        # Snapshot the root: the next legacy stage (age_tail) rewrites the
+        # person table in place, so an aliased capture would carry its ages.
+        root_capture["frame"] = Frame(
+            {
+                entity: result.table(entity).copy(deep=True)
+                for entity in result.entities
+            },
+            result.schema,
+            {entity: result.weights_for(entity) for entity in result.weighted_entities},
+            result.strata.copy(deep=True),
+            mass_log=result.mass_log,
+            metadata=dict(result.metadata),
+        )
         return result
 
     implementations: dict[str, object] = {

@@ -85,12 +85,19 @@ _STRUCTURAL_WEIGHT_KIND = {
 _READER_ISOLATION_BOUNDARIES = frozenset(
     {
         "uc_capital_coherence",
-        # Earlier stages in this version genuinely condition on age.  The
-        # terminal rewrite must live above them rather than becoming their
-        # same-version owner and reversing those dependencies.
-        "age_tail",
+        # ``frs_education_grant_split`` rewrites the root cell
+        # ``education_grants`` that the open-surface ``frs_legacy_proxies``
+        # reader already bound to.  In the root version that rewrite opened a
+        # boundary by the same-version owner rule; now that ``age_tail`` opens
+        # its own version right after the root, the root cells are inherited
+        # rather than owned there, so the isolation must be declared.
+        "frs_education_grant_split",
     }
 )
+# ``age_tail`` needs no isolation entry: it is declared immediately after the
+# root stage, and the root version already owns ``age``, so the same-version
+# owner rule opens its boundary.  Every later age reader then binds to the
+# disaggregated cell — the #785 contract — instead of the top-coded root.
 
 _SPLIT_STAGE_SOURCES: Mapping[str, tuple[str, ...]] = {
     "frs_spine": ("frs",),
@@ -222,11 +229,12 @@ _STAGE_CONSUMES: Mapping[str, frozenset[tuple[str, str]] | None] = {
             ("household", "region"),
         }
     ),
+    # Keyed on the structural person_id before any clone provenance exists;
+    # the transform refuses a frame that already carries person_source_id.
     "age_tail": frozenset(
         {
             ("person", "age"),
             ("person", "gender"),
-            ("person", "person_source_id"),
         }
     ),
 }

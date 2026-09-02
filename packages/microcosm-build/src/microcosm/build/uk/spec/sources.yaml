@@ -321,6 +321,42 @@ stages:
   - housing_service_charges
   - external_child_payments
   notes: Root E2 spine assembly. It carries direct raw mappings only; education-grant aggregate and council-tax reported fields remain raw carriers for E3. Benefit take-up, BRMA/LHA assignment, stochastic flags, and imputations are intentionally absent from this stage. The 2024-25 househol.tab is not sernum-ordered; the declared household sort guards stable identity.
+- stage: age_tail
+  survey: Family Resources Survey 2024-25 and ONS mid-year population estimates
+  source: Office for National Statistics mid-year population estimates for the 80+ age bands by sex, via the chronicle ledger facts the calibration register binds (target family ons_population).
+  grain: person
+  artifacts:
+  - role: age_tail_band_populations
+    kind: public_aggregate_reference
+    resource: ons_age_tail_band_populations.json
+    format: json
+    runtime_sha256_required: true
+  operations:
+  - kind: disaggregate_top_coded_ages
+    output: age
+    resource: ons_age_tail_band_populations.json
+    top_code: 80
+    bands:
+    - name: '80_84'
+      low: 80
+      width: 5
+    - name: '85_89'
+      low: 85
+      width: 5
+    - name: '90_plus'
+      low: 90
+      width: 8
+    seed: 0
+    draw_key: person_id
+    salt_streams:
+    - band
+    - within
+    reason: Age disaggregation rewrites an existing person column in place; no rows
+      move, no weights change, and total household mass is conserved.
+  outputs: []
+  rewrites:
+  - age
+  notes: "The licensed FRS records no age above 80, so every 80+ person arrives piled at exactly 80 and the 85-89 and 90+ population targets are structurally unbindable; the incumbent shares the defect. Each piled base person draws a band from the sex-specific ONS inverse CDF and a uniform integer age within it, keyed on person_id. Runs immediately after frs_spine, before every stage that conditions on age, so all age-conditioned imputations derive from the disaggregated surface. The stage precedes person_source_id provenance; later support and capital-gains clones copy the donor's rewritten age, preserving the #623 final-age identity invariant. Ages are assigned toward the ONS distribution; calibration still owns the totals."
 - stage: frs_employment
   survey: Family Resources Survey 2024-25
   source: Department for Work and Pensions Family Resources Survey 2024-25, UK Data Service SN 9563, DOI 10.5255/UKDA-SN-9563-1; local licensed 2024_25 tabs.
@@ -2318,42 +2354,6 @@ stages:
   rewrites:
   - student_loan_plan
   notes: Reported PAYE repayers are classified without a country gate. England tertiary cohorts are then topped up PLAN_5 first and PLAN_2 second to the pinned liable stocks at the FRS release calibration year; PLAN_4 is never imputed.
-- stage: age_tail
-  survey: Family Resources Survey 2024-25 and ONS mid-year population estimates
-  source: Office for National Statistics mid-year population estimates for the 80+ age bands by sex, via the chronicle ledger facts the calibration register binds (target family ons_population).
-  grain: person
-  artifacts:
-  - role: age_tail_band_populations
-    kind: public_aggregate_reference
-    resource: ons_age_tail_band_populations.json
-    format: json
-    runtime_sha256_required: true
-  operations:
-  - kind: disaggregate_top_coded_ages
-    output: age
-    resource: ons_age_tail_band_populations.json
-    top_code: 80
-    bands:
-    - name: '80_84'
-      low: 80
-      width: 5
-    - name: '85_89'
-      low: 85
-      width: 5
-    - name: '90_plus'
-      low: 90
-      width: 8
-    seed: 0
-    draw_key: person_source_id
-    salt_streams:
-    - band
-    - within
-    reason: Age disaggregation rewrites an existing person column in place; no rows
-      move, no weights change, and total household mass is conserved.
-  outputs: []
-  rewrites:
-  - age
-  notes: The licensed FRS records no age above 80, so every 80+ person arrives piled at exactly 80 and the 85-89 and 90+ population targets are structurally unbindable; the incumbent shares the defect. Each piled person draws a band from the sex-specific ONS inverse CDF and a uniform integer age within it, keyed on person_source_id so a household and its capital-gains clone twin receive the same age. Runs after student_loans — downstream of every stage that conditions on age, the position the #623 calibration campaign proved — so imputation conditioning is unchanged. Ages are assigned toward the ONS distribution; calibration still owns the totals.
 - stage: frs_hmrc_retained_leaves
   survey: Family Resources Survey 2024-25
   source: Department for Work and Pensions Family Resources Survey 2024-25 raw adult.tab and benefits.tab, caller-supplied local input

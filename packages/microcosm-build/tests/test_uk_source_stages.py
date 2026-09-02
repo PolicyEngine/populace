@@ -28,6 +28,9 @@ E3_STAGE_NAMES = [
     "frs_legacy_proxies",
     "frs_education_grant_split",
 ]
+POST_FRS_SPINE_STAGE_NAMES = [
+    "age_tail",
+]
 E4_STAGE_NAMES = [
     "frs_take_up",
     "frs_person_draws",
@@ -61,15 +64,9 @@ E8_STAGE_NAMES = [
     "salary_sacrifice",
     "student_loans",
 ]
-# Spine stages that land after the E8 block. `age_tail` rewrites `age` and so
-# must run downstream of every stage that conditions on it — student_loans
-# reads it for cohort start years, the CGT stages for the adult carrier — which
-# is the position the #623 calibration campaign exercised.
-POST_E8_STAGE_NAMES = [
-    "age_tail",
-]
 UK_SOURCE_STAGE_NAMES = [
     "frs_spine",
+    *POST_FRS_SPINE_STAGE_NAMES,
     *E3_STAGE_NAMES,
     *E4_STAGE_NAMES,
     *E5_STAGE_NAMES,
@@ -78,7 +75,6 @@ UK_SOURCE_STAGE_NAMES = [
     *UC_REPORTER_REDRAW_STAGE_NAMES,
     *UC_COHERENCE_STAGE_NAMES,
     *E8_STAGE_NAMES,
-    *POST_E8_STAGE_NAMES,
     "frs_hmrc_retained_leaves",
     "hmrc_spi_income",
 ]
@@ -168,12 +164,28 @@ class TestUKSourceStagesManifest:
             ]
         )
 
-    def test_e8_block_is_contiguous_and_the_certified_pair_stays_last(self) -> None:
-        # Two invariants, and only two: the E8 stages stay contiguous, and the
+    def test_age_tail_runs_immediately_after_frs_spine(self) -> None:
+        canonical = _load_json(CANONICAL_SOURCE_STAGES)
+        spine = [stage["stage"] for stage in canonical["stages"][:-2]]
+
+        assert spine[1] == "age_tail"
+
+    def test_age_tail_position_owns_the_only_later_age_rewrite_guard(self) -> None:
+        manifest = SourceManifest.from_mapping(_load_json(CANONICAL_SOURCE_STAGES))
+        stages = list(manifest.stages)
+        names = [stage.stage for stage in stages]
+        age_tail_index = names.index("age_tail")
+
+        assert age_tail_index == names.index("frs_spine") + 1
+        for stage in stages[age_tail_index + 1 :]:
+            assert "age" not in stage.outputs, stage.stage
+            assert "age" not in stage.rewrites, stage.stage
+
+    def test_e8_block_is_final_and_the_certified_pair_stays_last(self) -> None:
+        # The E8 stages stay contiguous at the end of the spine, while the
         # certified pair stays at [-2:] (the frozen-copy lockstep test reads
-        # them from there). E8 being the *final* spine block was an artifact
-        # of it having been the last increment — the spine may grow a tail
-        # after it, as `age_tail` does, without either invariant moving.
+        # them from there). age_tail is now the post-frs_spine block, before
+        # every stage that conditions on age.
         canonical = _load_json(CANONICAL_SOURCE_STAGES)
         names = [stage["stage"] for stage in canonical["stages"]]
 
@@ -181,7 +193,7 @@ class TestUKSourceStagesManifest:
         spine = names[:-2]
         start = spine.index(E8_STAGE_NAMES[0])
         assert spine[start : start + len(E8_STAGE_NAMES)] == E8_STAGE_NAMES
-        assert spine[start + len(E8_STAGE_NAMES) :] == POST_E8_STAGE_NAMES
+        assert spine[start + len(E8_STAGE_NAMES) :] == []
 
     def test_copy_is_lockstep_with_frozen_original_except_citation_rewrites(
         self,

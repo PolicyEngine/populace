@@ -376,7 +376,7 @@
     {
       "id": "uk_stage_age_tail_targets",
       "gate": "stage_health",
-      "phase": "transferred",
+      "phase": "assembled",
       "criticality": "release_blocking",
       "evidence_absent_blocks": true,
       "parameters": {
@@ -384,7 +384,7 @@
         "check": "age_tail_targets",
         "maximum_relative_deviation": 1.0
       },
-      "notes": "Stage-time achieved-versus-target gate over the age-tail disaggregation receipt."
+      "notes": "Stage-time achieved-versus-target gate over the age-tail disaggregation receipt. At its post-frs_spine position, achieved_weighted measures raw FRS-grossed 80+ mass before clone or zero-weight support channels exist."
     },
     {
       "id": "uk_release_input_coverage",
