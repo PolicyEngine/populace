@@ -41,29 +41,33 @@ def test_nhs_age_bound_parsing_uses_half_open_top_code() -> None:
     assert parse_nhs_age_bounds("95 years or older") == (95, 120)
 
 
-def test_nhs_85_plus_fold_in_and_budget_normalization_use_full_table() -> None:
+def test_nhs_native_top_bands_and_budget_normalization_use_full_table() -> None:
     person = pd.DataFrame(
         {
-            "person_id": [1, 2],
-            "person_household_id": [1, 2],
-            "age": [84, 85],
-            "gender": ["female", "FEMALE"],
+            "person_id": [1, 2, 3, 4],
+            "person_household_id": [1, 2, 3, 4],
+            "age": [84, 85, 90, 95],
+            "gender": ["female", "FEMALE", "FEMALE", "FEMALE"],
         }
     )
     household = pd.DataFrame(
         {
-            "household_id": [1, 2],
-            "household_weight": [2.0, 3.0],
+            "household_id": [1, 2, 3, 4],
+            "household_weight": [2.0, 3.0, 4.0, 5.0],
         }
     )
 
     cells = build_nhs_cell_table(_raw_nhs_rows(), person, household)
-    top = cells[cells["Lower age"] == 85].iloc[0]
+    top = cells[cells["Lower age"] >= 85].sort_values("Lower age")
 
-    assert top["Upper age"] == 120
-    assert top["Activity Count"] == 90.0
-    assert top["Total Cost"] == 1900.0
-    assert top["Total people"] == 3.0
+    assert list(zip(top["Lower age"], top["Upper age"], strict=True)) == [
+        (85, 90),
+        (90, 95),
+        (95, 120),
+    ]
+    assert top["Activity Count"].tolist() == [20.0, 30.0, 40.0]
+    assert top["Total Cost"].tolist() == [300.0, 600.0, 1000.0]
+    assert top["Total people"].tolist() == [3.0, 4.0, 5.0]
     assert np.isclose(
         cells["Per-person average spending"].mul(cells["Total people"]).sum(),
         load_etb_services_anchors()["nhs_budget_2025_26"]["value"],
@@ -79,10 +83,11 @@ def test_nhs_85_plus_fold_in_and_budget_normalization_use_full_table() -> None:
     )
 
     assert allocated.loc[0, "a_and_e_visits"] == 5.0
-    assert allocated.loc[1, "a_and_e_visits"] == 30.0
-    assert allocated.loc[0, "nhs_a_and_e_spending"] < allocated.loc[
-        1, "nhs_a_and_e_spending"
-    ]
+    assert allocated.loc[1, "a_and_e_visits"] == 20.0 / 3.0
+    assert allocated.loc[2, "a_and_e_visits"] == 30.0 / 4.0
+    assert allocated.loc[3, "a_and_e_visits"] == 40.0 / 5.0
+    spending = allocated["nhs_a_and_e_spending"].to_numpy(dtype=float)
+    assert np.all(np.diff(spending) > 0)
 
 
 def test_nhs_age_bounds_parse_every_committed_resource_label() -> None:

@@ -402,16 +402,6 @@ def build_nhs_cell_table(
         values="Total",
         aggfunc="sum",
     ).reset_index()
-    top = (
-        pivot[pivot["Lower age"] >= 85]
-        .groupby(["Gender", "Service"], as_index=False)[
-            ["Activity Count", "Total Cost"]
-        ]
-        .sum()
-    )
-    top["Lower age"] = 85
-    top["Upper age"] = 120
-    pivot = pd.concat([pivot[pivot["Lower age"] < 85], top], ignore_index=True)
     counts = _weighted_person_counts(person, household)
     pivot["Total people"] = [
         counts((row["Lower age"], row["Upper age"]), row["Gender"])

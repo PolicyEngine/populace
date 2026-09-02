@@ -241,7 +241,7 @@
         "nhs_admitted_patient_spending",
         "nhs_outpatient_spending"
       ],
-      "notes": "Ports ETB public-services QRF at household grain, computes rail_usage from the 2023 fare index, and allocates NHS visits/spending to persons using the signed half-open age-band and 85+ fold-in fixes. The year-max donor filter resolves to 2023 on the pinned tab (the file labels financial year ending 2024 as year 2023), so the services training year coincides with the VAT training year and the fare-index year - the incumbent's apparent three-way year mismatch is vacuous on this vintage.",
+      "notes": "Ports ETB public-services QRF at household grain, computes rail_usage from the 2023 fare index, and allocates NHS visits/spending to persons using the signed half-open age bands with the donor table's native 85-89, 90-94 and 95+ top bands (the former 85+ fold-in was retired once age_tail moved ahead of this stage and recipients could populate those bands). The year-max donor filter resolves to 2023 on the pinned tab (the file labels financial year ending 2024 as year 2023), so the services training year coincides with the VAT training year and the fare-index year - the incumbent's apparent three-way year mismatch is vacuous on this vintage.",
       "operations": [
         {
           "annualization_weeks": 52,
@@ -303,7 +303,7 @@
           "budget_resource": "etb_services_anchors.json",
           "kind": "allocate_per_capita_from_cell_table",
           "resource": "nhs_consumption_by_age_gender.json",
-          "top_band_fold_in": "85+"
+          "top_band_fold_in": "none"
         }
       ],
       "outputs": [
