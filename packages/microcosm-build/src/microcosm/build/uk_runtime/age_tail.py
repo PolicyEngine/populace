@@ -14,6 +14,8 @@ the imputation source and the target denominators cannot drift apart). The
 draw is:
 
 - keyed on the base-row ``person_id`` before clone provenance exists;
+- dtype-preserving: an integer ``age`` column stays integer (bands and
+  within-band offsets are integral), matching the graph's int64 declaration;
 - deterministic under a declared seed (sha256 counter stream, no global RNG);
 - sex-specific, using the MALE/FEMALE 80-84 / 85-89 / 90+ populations as an
   inverse CDF, with a uniform integer age within the drawn band.
@@ -199,7 +201,14 @@ def disaggregate_uk_age_top_code(
         key = (gender, name)
         assigned_counts[key] = assigned_counts.get(key, 0) + 1
 
-    person["age"] = new_ages
+    # Bands and within-band offsets are integers, so an integer input keeps
+    # its dtype: the graph declares age int64 from the root (#845), and a
+    # float input (synthetic frames) stays float.
+    age_dtype = person["age"].dtype
+    if np.issubdtype(age_dtype, np.integer):
+        person["age"] = new_ages.astype(age_dtype)
+    else:
+        person["age"] = new_ages
     check = pd.to_numeric(frame.table("person")["age"], errors="raise")
     if int((check == float(top_code)).sum()) >= int(piled.sum()):
         raise RuntimeError("age disaggregation did not persist on the frame.")

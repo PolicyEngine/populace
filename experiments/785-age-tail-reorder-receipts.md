@@ -6,11 +6,13 @@ raw measurement scripts and receipts will live licensed-side under
 measurement below must name its artifact digest, PolicyEngine-UK version, period,
 and disclosure-control threshold.
 
-The before artifact is **spine-m**, produced from the #835 publication stack. All
-before values below are **to be measured at L2** from that digest-pinned artifact;
-none are inferred from an earlier spine or from the planning estimates. The after
-artifact is the twin-verified **spine-n** build from the composed #835 + #785
-publication stack.
+The before artifact is the **graph-executed 27-stage build of main after #835 merged**
+(its I5 re-mint candidate), not the legacy-executed spine-m: the graph executor's own
+normalizations (text columns stored as StringDtype, root cells cast at CREATE) would
+otherwise appear as payload differences that are not this change's. All before values
+below are **to be measured at L2** from that digest-pinned artifact; none are inferred
+from an earlier spine or from the planning estimates. The after artifact is the
+twin-verified **spine-n** build of this branch.
 
 ## Inputs and provenance
 
@@ -23,7 +25,10 @@ publication stack.
 
 ## Receipt 1 — byte-identical final age
 
-- `person.age` payload-diff presence and dtype comparison: **to be measured at L2**
+- `person.age` value-surface absence from the payload diff: **to be measured at L2**
+- `person.age` dtype: int64 on spine-n (#845 declares the root cell int64 and age_tail
+  rewrites it as int64) versus the before artifact's dtype — the only licensed
+  surface on this column: **to be measured at L2**
 - sha256 over sorted shared-channel `(person_source_id, age)` pairs, spine-m:
   **to be measured at L2**
 - sha256 over sorted shared-channel `(person_source_id, age)` pairs, spine-n:
@@ -68,8 +73,9 @@ identities. The donor block is compared separately under "CGT donor selection".
 
 ### UC reporter and capital follow-through
 
-- stage-19 SPI reporter-set and amount movement, with base-channel byte equality:
-  **to be measured at L2**
+- stage-19 SPI reporter-set and amount movement, with base-channel byte equality
+  (`uc-reporter-benefit-unit-redraw-incidence` re-derived; the refresh-lift entry was
+  retired by #835's third review pass): **to be measured at L2**
 - stage-20 `frs_benunit_capital`, `uc_reported_capital`, and `would_claim_uc`
   movement on the SPI reporter domain: **to be measured at L2**
 

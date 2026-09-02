@@ -147,6 +147,24 @@ class TestDraw:
 
         assert np.array_equal(candidate.table("person")["age"], expected)
 
+    def test_an_integer_age_column_stays_integer(self) -> None:
+        # The FRS root produces int64 ages and the graph declares the cell
+        # int64 end to end (#845); the draw's bands are integral, so nothing
+        # is lost by keeping the dtype.
+        as_float = _frame(n_piled=60)
+        as_int = _frame(n_piled=60)
+        as_int.table("person")["age"] = as_int.table("person")["age"].astype("int64")
+
+        disaggregate_uk_age_top_code(as_float, band_populations=_BANDS)
+        disaggregate_uk_age_top_code(as_int, band_populations=_BANDS)
+
+        assert as_int.table("person")["age"].dtype == np.dtype("int64")
+        assert as_float.table("person")["age"].dtype == np.dtype("float64")
+        assert np.array_equal(
+            as_int.table("person")["age"].to_numpy(),
+            as_float.table("person")["age"].to_numpy(),
+        )
+
     def test_the_draw_follows_the_band_populations(self) -> None:
         # A degenerate CDF that puts all mass on 90+ must send the whole pile
         # there — the shares drive the draw, not a hardcoded split.

@@ -107,6 +107,7 @@ def test_expected_change_is_classified_with_its_scope() -> None:
             "declared_expectation": "expected_changed",
             "scope": "SPI rows only",
             "reason": "age-conditioned QRF",
+            "declared_surfaces": None,
         }
     ]
 
@@ -152,6 +153,61 @@ def test_unequal_row_counts_fail_closed_because_columns_go_unobserved() -> None:
         "__index_values__",
     ]
     assert result["expected_changed_not_observed"] == ["person.employment_income"]
+
+
+def test_declared_surfaces_license_only_those_surfaces() -> None:
+    # A dtype-only expectation (person.age under #845) must not license a
+    # value change on the same column.
+    declared = _expectation()
+    declared["expected_byte_equal"] = []
+    declared["expected_changed"].append(
+        {
+            "entity": "person",
+            "columns": ["age"],
+            "scope": "dtype only",
+            "reason": "int64 replaces float64",
+            "surfaces": ["dtype"],
+        }
+    )
+    dtype_only = _report(
+        tables={
+            "person": _table(
+                dtype_mismatches={"age": {"left": "float64", "right": "int64"}}
+            )
+        }
+    )
+    with_values = _report(
+        tables={
+            "person": _table(
+                dtype_mismatches={"age": {"left": "float64", "right": "int64"}},
+                value_mismatch_rows_by_column={"age": 12},
+            )
+        }
+    )
+
+    ok = CLASSIFIER.classify_payload_diff(dtype_only, declared)
+    bad = CLASSIFIER.classify_payload_diff(with_values, declared)
+
+    assert ok["ok"] is True
+    assert ok["classified_table"][0]["declared_surfaces"] == ["dtype"]
+    assert bad["ok"] is False
+    assert [
+        (row["surface"], row["classification"]) for row in bad["classified_table"]
+    ] == [
+        ("dtype", "expected_changed"),
+        ("value", "unexpected"),
+    ]
+
+
+def test_surfaces_are_validated() -> None:
+    declared = _expectation()
+    declared["expected_changed"][0]["surfaces"] = []
+    with pytest.raises(ValueError, match="surfaces is invalid"):
+        CLASSIFIER.classify_payload_diff(_report(tables={"person": _table()}), declared)
+    declared = _expectation()
+    declared["expected_byte_equal"][0]["surfaces"] = ["value"]
+    with pytest.raises(ValueError, match="only applies to expected_changed"):
+        CLASSIFIER.classify_payload_diff(_report(tables={"person": _table()}), declared)
 
 
 def test_structural_surfaces_cannot_be_declared_expected_changed() -> None:

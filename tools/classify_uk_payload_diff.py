@@ -18,6 +18,11 @@ surface (``__row_count__``, ``__index_values__``, ...) can never be declared
 means the column-level contract could not be observed at all. The reselected
 donor set and its entity-count deltas are reported by Receipt 1, separately.
 
+An ``expected_changed`` group may name the ``surfaces`` it expects to move
+(``value``, ``dtype``, ``column_only_left``, ...). A difference on any other
+surface of those columns is still ``unexpected``: declaring a dtype change
+does not license a value change.
+
 Exit code: 0 when no unexpected difference is present, 1 when at least one is
 present, and 2 when either JSON input is unreadable or fails schema checks.
 """
@@ -60,6 +65,19 @@ def _expectation_index(
             columns = group.get("columns")
             scope = group.get("scope")
             reason = group.get("reason")
+            surfaces = group.get("surfaces")
+            if surfaces is not None and (
+                not isinstance(surfaces, list)
+                or not surfaces
+                or any(
+                    not isinstance(surface, str) or not surface for surface in surfaces
+                )
+            ):
+                raise ValueError(f"{expectation}[{ordinal}].surfaces is invalid.")
+            if surfaces is not None and expectation != "expected_changed":
+                raise ValueError(
+                    f"{expectation}[{ordinal}].surfaces only applies to expected_changed."
+                )
             if not isinstance(entity, str) or not entity:
                 raise ValueError(f"{expectation}[{ordinal}].entity is invalid.")
             if (
@@ -86,6 +104,7 @@ def _expectation_index(
                     "expectation": expectation,
                     "scope": scope,
                     "reason": reason,
+                    "surfaces": None if surfaces is None else tuple(surfaces),
                 }
     return index
 
@@ -264,7 +283,12 @@ def classify_payload_diff(
     for difference in differences:
         key = (difference["entity"], difference["column"])
         declared = index.get(key)
-        if declared is not None and declared["expectation"] == "expected_changed":
+        surfaces = None if declared is None else declared["surfaces"]
+        if (
+            declared is not None
+            and declared["expectation"] == "expected_changed"
+            and (surfaces is None or difference["surface"] in surfaces)
+        ):
             classification = "expected_changed"
             observed_expected_changed.add(key)
         else:
@@ -284,6 +308,7 @@ def classify_payload_diff(
                     if declared is not None
                     else "No expected-changed entry names this surface."
                 ),
+                "declared_surfaces": None if surfaces is None else list(surfaces),
             }
         )
 

@@ -30,7 +30,7 @@
       "__stratum__": "string",
       "access_fund": "float64",
       "afcs_reported": "float64",
-      "age": "float64",
+      "age": "int64",
       "attendance_allowance_reported": "float64",
       "bsp_reported": "float64",
       "carers_allowance_reported": "float64",

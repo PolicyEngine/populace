@@ -1,16 +1,8 @@
 {
   "schema_version": 1,
-  "scope_note": "#785 spine-m to spine-n payload contract, defined on the donor-excluded, row-aligned slice: drop every household flagged household_is_cgt_band_donor (with its benefit units and persons) from both artifacts before running compare_uk_h5_payload.py, so every table's row counts agree and column values are compared position-wise. Any unlisted value, dtype, structural, store-key, or root-attribute difference is expected_byte_equal and therefore unexpected. The reselected CGT donor set and its entity-count deltas are Receipt 1's separate report. Scoped row-domain claims still require the companion L2 slice checks because compare_uk_h5_payload.py discloses counts, not unit-row identities.",
+  "scope_note": "#785 spine-m to spine-n payload contract, defined on the donor-excluded, row-aligned slice: drop every household flagged household_is_cgt_band_donor (with its benefit units and persons) from both artifacts before running compare_uk_h5_payload.py, so every table's row counts agree and column values are compared position-wise. Any unlisted value, dtype, structural, store-key, or root-attribute difference is expected_byte_equal and therefore unexpected. The reselected CGT donor set and its entity-count deltas are Receipt 1's separate report. The before-artifact must be graph-executed (the post-#835 build of main): the legacy-executed spine-m differs from any graph build in executor normalizations (text columns as StringDtype) that are not this change's. Scoped row-domain claims still require the companion L2 slice checks because compare_uk_h5_payload.py discloses counts, not unit-row identities.",
   "default_expectation": "expected_byte_equal",
   "expected_byte_equal": [
-    {
-      "entity": "person",
-      "columns": [
-        "age"
-      ],
-      "scope": "every row of the donor-excluded slice; clones copy the donor age",
-      "reason": "Re-keying to person_id must preserve the final age surface exactly."
-    },
     {
       "entity": "household",
       "columns": [
@@ -21,6 +13,17 @@
     }
   ],
   "expected_changed": [
+    {
+      "entity": "person",
+      "columns": [
+        "age"
+      ],
+      "surfaces": [
+        "dtype"
+      ],
+      "scope": "dtype only: int64 replaces float64 on every row (#845); the values are byte-identical, proven by Receipt 1",
+      "reason": "age is declared int64 from the root and age_tail rewrites it as int64; the reorder itself must not move a single age value."
+    },
     {
       "entity": "person",
       "columns": [
