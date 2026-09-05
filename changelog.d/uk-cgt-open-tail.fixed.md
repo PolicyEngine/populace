@@ -1,0 +1,1 @@
+Represent the UK CGT open tail with household-weighted Pareto interval means anchored to published cell gains, avoiding random aggregate drift and rounded-count mean errors while preserving taxpayer selection and bounded-band draws.

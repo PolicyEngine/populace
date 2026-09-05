@@ -43,6 +43,43 @@ PARAMETERS = UKCGTPolicyParameters(
 )
 
 
+@pytest.mark.parametrize("weights", [[1.0], [1.0, 1.0, 1.0], [1.0, 5000.0, 7.0, 42.0]])
+def test_open_tail_draws_preserve_the_weighted_published_mean(weights) -> None:
+    """A few unequal-weight carriers must not turn the CGT tail into a lottery."""
+    weights = np.asarray(weights)
+    for seed in range(5):
+        draws = cgt_imputation._weighted_pareto_draws(
+            weights,
+            np.random.default_rng(seed).random(len(weights)),
+            lower=5_000_000.0,
+            mean=11_357_000.0,
+        )
+        assert np.isfinite(draws).all()
+        assert (draws >= 5_000_000).all()
+        assert np.average(draws, weights=weights) == pytest.approx(
+            11_357_000.0, rel=1e-12
+        )
+
+
+def test_open_tail_draws_are_equivariant_to_carrier_order() -> None:
+    weights = np.array([3.0, 12.0, 7.0])
+    uniforms = np.array([0.7, 0.1, 0.4])
+    order = np.array([2, 0, 1])
+    original = cgt_imputation._weighted_pareto_draws(
+        weights,
+        uniforms,
+        lower=5_000_000.0,
+        mean=11_357_000.0,
+    )
+    shuffled = cgt_imputation._weighted_pareto_draws(
+        weights[order],
+        uniforms[order],
+        lower=5_000_000.0,
+        mean=11_357_000.0,
+    )
+    np.testing.assert_allclose(shuffled, original[order], rtol=0, atol=0)
+
+
 def _distribution(
     *, cell_people: float = 1_000.0, suppress_top_low_income: bool = False
 ) -> HMRCCapitalGainsJointDistribution:
@@ -344,6 +381,22 @@ class TestImputation:
         assert summary.published_taxpayer_mass == distribution.total_individuals
         assert summary.taxpayer_mass > 0
         assert (summary.rows["published_gains"] > 0).all()
+
+
+@pytest.mark.parametrize("seed", [1, 2, 3])
+def test_open_tail_uses_published_gains_despite_rounded_carrier_mass(seed) -> None:
+    # A 250-person cell is represented by three weight-100 carriers. Its
+    # published £2.5bn amount must not become £3bn through count rounding.
+    distribution = _distribution(cell_people=250.0)
+    frame = _frame(100, gains=np.arange(1, 101) * 1000, incomes=[20_000] * 100)
+    result = impute_uk_capital_gains(frame, distribution, PARAMETERS, seed=seed)
+    gains = result.table("person")["capital_gains"].to_numpy()
+    top = gains >= 5_000_000
+    assert top.sum() == 3
+    assert (gains[top] * 100).sum() == pytest.approx(2_500_000_000, rel=1e-12)
+    np.testing.assert_array_equal(
+        result.weights_for("household").values, frame.weights_for("household").values
+    )
 
 
 class TestStage:

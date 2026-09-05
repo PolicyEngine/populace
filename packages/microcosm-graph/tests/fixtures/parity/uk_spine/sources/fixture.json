@@ -1428,7 +1428,7 @@
           "kind": "within_band_draws",
           "mean_repair_margin": 0.02,
           "mean_repair_reason": "Published counts round to the nearest thousand and amounts to the nearest million; four cells of the 2023-24 table imply a mean outside their own band, and repaired means clamp just inside the violated boundary.",
-          "open_band_family": "Pareto with alpha = mean / (mean - lower bound)",
+          "open_band_family": "Pareto with alpha = mean / (mean - lower bound); mean from published cell gains / actual carrier mass, scaled for support shortfall and subject to band floor; household-weighted probability-interval means ordered by held uniforms",
           "seed_base": 552,
           "seed_mixing": "seed combined with the build period; draws ordered by allocation rank"
         },
