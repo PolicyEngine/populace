@@ -285,6 +285,55 @@ def _pareto_quantile(quantiles: np.ndarray, lower: float, mean: float) -> np.nda
     return lower * np.power(1.0 - quantiles, -1.0 / alpha)
 
 
+def _weighted_pareto_draws(
+    weights: np.ndarray,
+    uniforms: np.ndarray,
+    *,
+    lower: float,
+    mean: float,
+) -> np.ndarray:
+    """Represent the open-tail distribution by weighted probability intervals.
+
+    Order carriers by the held uniforms, partition probability by their
+    population weights, and assign each interval's conditional Pareto mean.
+    Integrating the unbounded last interval is finite because alpha > 1.
+    The weighted average is the source mean even with one carrier; no
+    post-calibration scaling or household-weight change is involved.
+    """
+    weights = np.asarray(weights, dtype=float)
+    uniforms = np.asarray(uniforms, dtype=float)
+    if weights.ndim != 1 or uniforms.shape != weights.shape:
+        raise ValueError("Pareto carrier weights and uniforms must align.")
+    if not np.isfinite(weights).all() or (weights < 0).any():
+        raise ValueError("Pareto carrier weights must be finite and non-negative.")
+    if not np.isfinite(uniforms).all() or ((uniforms < 0) | (uniforms >= 1)).any():
+        raise ValueError("Pareto ordering uniforms must be in [0, 1).")
+    if not np.isfinite([lower, mean]).all() or not 0 < lower < mean:
+        raise ValueError("The Pareto mean must exceed its positive lower bound.")
+    result = _pareto_quantile(uniforms, lower, mean)
+    positive = np.flatnonzero(weights > 0)
+    if not len(positive):
+        return result
+    order = positive[np.argsort(uniforms[positive], kind="stable")]
+    ordered_weights = weights[order]
+    total = ordered_weights.sum()
+    if not np.isfinite(total):
+        raise ValueError("Pareto carrier weight total must be finite.")
+    shares = ordered_weights / total
+    survival_left = np.cumsum(shares[::-1])[::-1]
+    # Integral of Q(q) = lower * (1-q)^(-1/alpha) over the
+    # interval is mean * (survival_left^beta - survival_right^beta),
+    # where beta = 1 - 1/alpha = lower/mean. expm1 avoids cancellation
+    # for an interval small relative to its remaining probability mass.
+    beta = lower / mean
+    fraction = np.minimum(shares / survival_left, 1.0)
+    difference = np.ones(len(order))
+    interior = fraction < 1.0
+    difference[interior] = -np.expm1(beta * np.log1p(-fraction[interior]))
+    result[order] = mean * survival_left**beta * difference / shares
+    return result
+
+
 @dataclass(frozen=True)
 class _CellPlan:
     """Allocation and draw parameters for one gain band within an income band."""
@@ -538,7 +587,33 @@ def impute_uk_capital_gains(
                 continue
             assigned |= in_cell
             quantiles = rng.random(count)
-            new_gains[ranked[in_cell]] = _draw_amounts(plan, quantiles)
+            if np.isinf(plan.gain_upper_bound):
+                cell = distribution.cell(
+                    gain_lower_bound=plan.gain_lower_bound,
+                    income_lower_bound=income_lower_bound,
+                )
+                carrier_mass = float(band_weights[in_cell].sum())
+                mean = plan.mean
+                if cell.gains is not None and carrier_mass > 0:
+                    # Counts round to thousands and many are suppressed.
+                    # Preserve the published amount on the actual carriers,
+                    # including the allocation's explicit support-shortfall
+                    # factor. The band floor remains binding if the carriers
+                    # are too heavy to represent this amount; the summary
+                    # reports that residual rather than moving taxpayers.
+                    mean, _ = _repair_mean(
+                        cell.gains * scale / carrier_mass,
+                        effective_lower=plan.effective_lower_bound,
+                        upper=plan.gain_upper_bound,
+                    )
+                new_gains[ranked[in_cell]] = _weighted_pareto_draws(
+                    band_weights[in_cell],
+                    quantiles,
+                    lower=plan.effective_lower_bound,
+                    mean=mean,
+                )
+            else:
+                new_gains[ranked[in_cell]] = _draw_amounts(plan, quantiles)
 
         # Below the published taxpayer mass: sub-AEA gainers keep their
         # existing amounts, capped at the annual exempt amount.
@@ -801,7 +876,7 @@ def _assert_cgt_spine_stage_parameters(stage: SourceStageSpec) -> None:
             "bounded_band_family": (
                 "truncated exponential matched to the cell's published mean"
             ),
-            "open_band_family": "Pareto with alpha = mean / (mean - lower bound)",
+            "open_band_family": "Pareto with alpha = mean / (mean - lower bound); mean from published cell gains / actual carrier mass, scaled for support shortfall and subject to band floor; household-weighted probability-interval means ordered by held uniforms",
             "mean_repair_margin": _MEAN_MARGIN,
             "mean_repair_reason": (
                 "Published counts round to the nearest thousand and amounts "
