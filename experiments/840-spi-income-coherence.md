@@ -133,7 +133,9 @@ pin alone does not identify the uncommitted treatment used in those runs.
 | OBR CGT error | −24.975% | −24.739% |
 
 Loss improves by 36.6%, with a substantial improvement in interest matching and
-the two pension-band errors. The aggregate tax and pension regressions mean
+the two pension-band errors. Under `family_equal`, the single ONS interest target
+accounts for about 95.7% of the net loss reduction. This concentration matters
+when interpreting the headline objective. The aggregate tax and pension regressions mean
 that better overall loss does not establish a complete solution to their joint
 fit with UC. The single-parent UC count rises by only about 15,000 despite the
 larger increase in pre-calibration income-screen support.
