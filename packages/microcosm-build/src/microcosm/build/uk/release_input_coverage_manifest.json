@@ -36,7 +36,7 @@
       "status": "required_at_build",
       "stage": "cgt_incidence_clone",
       "source_manifest": "source_stages.json",
-      "source_manifest_sha256": "1379145c702edc275ef14e5bc564f793133e3b70ae985182a389be56a190c129",
+      "source_manifest_sha256": "b0431557411237de40dc124301508c46070ddf6385d384a4675594943c01e14a",
       "base_candidate_sha256": "f17306ccb2aad7ff0130be3589b560afb2e2a12a943570911cd0c77f07934833",
       "base_candidate_tier": "frs",
       "source_vintages": {
@@ -59,7 +59,7 @@
       "status": "required_at_build",
       "stage": "cgt_band_donors",
       "source_manifest": "source_stages.json",
-      "source_manifest_sha256": "1379145c702edc275ef14e5bc564f793133e3b70ae985182a389be56a190c129",
+      "source_manifest_sha256": "b0431557411237de40dc124301508c46070ddf6385d384a4675594943c01e14a",
       "base_candidate_sha256": "f17306ccb2aad7ff0130be3589b560afb2e2a12a943570911cd0c77f07934833",
       "base_candidate_tier": "frs",
       "source_vintages": {
@@ -82,7 +82,7 @@
       "status": "required_at_build",
       "stage": "hmrc_cgt_gains_spine",
       "source_manifest": "source_stages.json",
-      "source_manifest_sha256": "1379145c702edc275ef14e5bc564f793133e3b70ae985182a389be56a190c129",
+      "source_manifest_sha256": "b0431557411237de40dc124301508c46070ddf6385d384a4675594943c01e14a",
       "base_candidate_sha256": "f17306ccb2aad7ff0130be3589b560afb2e2a12a943570911cd0c77f07934833",
       "base_candidate_tier": "frs",
       "source_vintages": {
@@ -106,7 +106,7 @@
       "status": "required_at_build",
       "stage": "salary_sacrifice",
       "source_manifest": "source_stages.json",
-      "source_manifest_sha256": "1379145c702edc275ef14e5bc564f793133e3b70ae985182a389be56a190c129",
+      "source_manifest_sha256": "b0431557411237de40dc124301508c46070ddf6385d384a4675594943c01e14a",
       "base_candidate_sha256": "f17306ccb2aad7ff0130be3589b560afb2e2a12a943570911cd0c77f07934833",
       "base_candidate_tier": "frs",
       "source_vintages": {
@@ -130,7 +130,7 @@
       "status": "required_at_build",
       "stage": "student_loans",
       "source_manifest": "source_stages.json",
-      "source_manifest_sha256": "1379145c702edc275ef14e5bc564f793133e3b70ae985182a389be56a190c129",
+      "source_manifest_sha256": "b0431557411237de40dc124301508c46070ddf6385d384a4675594943c01e14a",
       "base_candidate_sha256": "f17306ccb2aad7ff0130be3589b560afb2e2a12a943570911cd0c77f07934833",
       "base_candidate_tier": "frs",
       "source_vintages": {
@@ -156,7 +156,7 @@
       "superseded_by": {
         "stage": "hmrc_cgt_gains_spine",
         "source_manifest": "source_stages.json",
-        "source_manifest_sha256": "1379145c702edc275ef14e5bc564f793133e3b70ae985182a389be56a190c129",
+        "source_manifest_sha256": "b0431557411237de40dc124301508c46070ddf6385d384a4675594943c01e14a",
         "reason": "The FRS spine build executes hmrc_cgt_gains_spine, which applies the same HMRC Table 3 amounts redraw directly in source_stages.json before calibration."
       },
       "base_candidate_sha256": "f17306ccb2aad7ff0130be3589b560afb2e2a12a943570911cd0c77f07934833",
@@ -182,11 +182,11 @@
       "source_manifest": "hmrc_income_source_stages.json",
       "source_manifest_sha256": "c0341af7166ae3a85a3c1164e7d9e880c4b4aec122f1a8fa90c73b46c596e1ea",
       "canonical_source_manifest": "source_stages.json",
-      "canonical_source_manifest_sha256": "1379145c702edc275ef14e5bc564f793133e3b70ae985182a389be56a190c129",
+      "canonical_source_manifest_sha256": "b0431557411237de40dc124301508c46070ddf6385d384a4675594943c01e14a",
       "superseded_by": {
         "stage": "hmrc_spi_income_spine",
         "source_manifest": "source_stages.json",
-        "source_manifest_sha256": "1379145c702edc275ef14e5bc564f793133e3b70ae985182a389be56a190c129",
+        "source_manifest_sha256": "b0431557411237de40dc124301508c46070ddf6385d384a4675594943c01e14a",
         "reason": "The FRS spine build executes hmrc_spi_income_spine, which supersedes the June retained-leaves/hmrc_spi_income pair inside source_stages.json."
       },
       "base_candidate_sha256": "f17306ccb2aad7ff0130be3589b560afb2e2a12a943570911cd0c77f07934833",
@@ -272,7 +272,7 @@
       "status": "required_at_build",
       "stage": "was_wealth",
       "source_manifest": "source_stages.json",
-      "source_manifest_sha256": "1379145c702edc275ef14e5bc564f793133e3b70ae985182a389be56a190c129",
+      "source_manifest_sha256": "b0431557411237de40dc124301508c46070ddf6385d384a4675594943c01e14a",
       "base_candidate_sha256": "f17306ccb2aad7ff0130be3589b560afb2e2a12a943570911cd0c77f07934833",
       "base_candidate_tier": "frs",
       "source_vintages": {
@@ -307,7 +307,7 @@
       "status": "required_at_build",
       "stage": "regional_property_uprating",
       "source_manifest": "source_stages.json",
-      "source_manifest_sha256": "1379145c702edc275ef14e5bc564f793133e3b70ae985182a389be56a190c129",
+      "source_manifest_sha256": "b0431557411237de40dc124301508c46070ddf6385d384a4675594943c01e14a",
       "base_candidate_sha256": "f17306ccb2aad7ff0130be3589b560afb2e2a12a943570911cd0c77f07934833",
       "base_candidate_tier": "frs",
       "source_vintages": {
@@ -328,7 +328,7 @@
       "status": "required_at_build",
       "stage": "lcfs_consumption",
       "source_manifest": "source_stages.json",
-      "source_manifest_sha256": "1379145c702edc275ef14e5bc564f793133e3b70ae985182a389be56a190c129",
+      "source_manifest_sha256": "b0431557411237de40dc124301508c46070ddf6385d384a4675594943c01e14a",
       "base_candidate_sha256": "f17306ccb2aad7ff0130be3589b560afb2e2a12a943570911cd0c77f07934833",
       "base_candidate_tier": "frs",
       "source_vintages": {
@@ -366,7 +366,7 @@
       "status": "required_at_build",
       "stage": "etb_vat",
       "source_manifest": "source_stages.json",
-      "source_manifest_sha256": "1379145c702edc275ef14e5bc564f793133e3b70ae985182a389be56a190c129",
+      "source_manifest_sha256": "b0431557411237de40dc124301508c46070ddf6385d384a4675594943c01e14a",
       "base_candidate_sha256": "f17306ccb2aad7ff0130be3589b560afb2e2a12a943570911cd0c77f07934833",
       "base_candidate_tier": "frs",
       "source_vintages": {
@@ -386,7 +386,7 @@
       "status": "required_at_build",
       "stage": "etb_services",
       "source_manifest": "source_stages.json",
-      "source_manifest_sha256": "1379145c702edc275ef14e5bc564f793133e3b70ae985182a389be56a190c129",
+      "source_manifest_sha256": "b0431557411237de40dc124301508c46070ddf6385d384a4675594943c01e14a",
       "base_candidate_sha256": "f17306ccb2aad7ff0130be3589b560afb2e2a12a943570911cd0c77f07934833",
       "base_candidate_tier": "frs",
       "source_vintages": {

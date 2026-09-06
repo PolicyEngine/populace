@@ -226,7 +226,185 @@ def _bypass_reviewed_donor_identity(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(spi_income, "_verify_spi_donor_identity", lambda _: None)
 
 
-@pytest.mark.requires_uk
+def test_spi_preserves_observed_children_outside_the_donor_age_domain(
+    monkeypatch, tmp_path
+) -> None:
+    """SN 9422's youngest donor band starts at 16; children keep FRS inputs."""
+    support = _dead_support()
+    person = support.person.copy()
+    channel = support_channel_column("person")
+    child = person.index[person[channel].eq("spi")][0]
+    person.loc[child, "age"] = 15
+    preserved = [
+        "employment_income",
+        "self_employment_income",
+        "private_pension_income",
+        "state_pension_reported",
+        "universal_credit_reported",
+        "savings_interest_income",
+        "tax_free_savings_income",
+        "dla_sc_reported",
+    ]
+    person.loc[child, preserved] = [0, 0, 0, 0, 0, 12, 3, 42]
+    support = replace(support, person=person)
+    donor_path = tmp_path / SPI_DONOR_FILENAME
+    _write_donor(donor_path)
+    monkeypatch.setattr(spi_income, "QRF", _FakeQRF)
+    _bypass_reviewed_donor_identity(monkeypatch)
+
+    result = impute_uk_spi_income_support(
+        support, donor_path, seed=9, n_estimators=3, donor_sample_size=None
+    )
+
+    pd.testing.assert_series_equal(
+        result.person.loc[child, preserved], person.loc[child, preserved]
+    )
+    assert result.spi_prediction_rows == int(person[channel].eq("spi").sum()) - 1
+    adults = person[channel].eq("spi") & person.age.ge(16)
+    assert result.person.loc[adults, "gift_aid"].eq(10).all()
+
+
+def test_spi_rebases_income_before_frs_fill_and_preserves_child_inputs(
+    monkeypatch, tmp_path
+) -> None:
+    support = _dead_support()
+    person = support.person.copy()
+    channel = support_channel_column("person")
+    base_child = person.index[person[channel].eq("frs")][0]
+    person.loc[base_child, "age"] = 15
+    person.loc[base_child, "dividend_income"] = 19.0
+    support = replace(support, person=person)
+    donor_path = tmp_path / SPI_DONOR_FILENAME
+    _write_donor(donor_path)
+    monkeypatch.setattr(spi_income, "QRF", _FakeQRF)
+    _bypass_reviewed_donor_identity(monkeypatch)
+    factors = dict.fromkeys(SPI_INCOME_QRF_OUTPUT_COLUMNS, 2.0)
+    monkeypatch.setattr(
+        spi_income,
+        "_spi_income_uprating_factors",
+        lambda year: (factors, {"from_period": 2022, "to_period": year}),
+        raising=False,
+    )
+    options = dict(
+        seed=9,
+        n_estimators=3,
+        donor_sample_size=None,
+        stage1_base_redraw_columns=("dividend_income",),
+    )
+    reference = impute_uk_spi_income_support(support, donor_path, **options)
+    result = impute_uk_spi_income_support(
+        support,
+        donor_path,
+        rebase_income_to_build_period=True,
+        build_period=2024,
+        **options,
+    )
+    spi = person[channel].eq("spi")
+    np.testing.assert_array_equal(
+        result.person.loc[spi, "employment_income"],
+        2 * reference.person.loc[spi, "employment_income"],
+    )
+    # Only taxable SPI interest is rebased; the FRS fill's £5 tax-free draw
+    # is already in the build-year basis and must not be doubled.
+    assert result.person.loc[spi, "savings_interest_income"].eq(205).all()
+    assert (
+        result.person.loc[base_child, "dividend_income"]
+        == person.loc[base_child, "dividend_income"]
+    )
+    base_adult = person[channel].eq("frs") & person.age.ge(16)
+    np.testing.assert_array_equal(
+        result.person.loc[base_adult, "dividend_income"],
+        2 * reference.person.loc[base_adult, "dividend_income"],
+    )
+    assert result.income_uprating == {"from_period": 2022, "to_period": 2024}
+
+
+def test_child_exclusion_keeps_the_base_dividend_random_stream(
+    monkeypatch, tmp_path
+) -> None:
+    support = _dead_support()
+    donor_path = tmp_path / SPI_DONOR_FILENAME
+    _write_donor(donor_path)
+    original_predict = _FakeFittedQRF.predict
+
+    def predict(self, predictors):
+        result = original_predict(self, predictors)
+        if "dividend_income" in result:
+            consumed = getattr(self, "consumed", 0)
+            result["dividend_income"] = consumed + np.arange(len(result), dtype=float)
+            self.consumed = consumed + len(result)
+        return result
+
+    monkeypatch.setattr(_FakeFittedQRF, "predict", predict)
+    monkeypatch.setattr(spi_income, "QRF", _FakeQRF)
+    _bypass_reviewed_donor_identity(monkeypatch)
+    options = dict(
+        seed=9,
+        n_estimators=3,
+        donor_sample_size=None,
+        stage1_base_redraw_columns=("dividend_income",),
+    )
+    reference = impute_uk_spi_income_support(support, donor_path, **options)
+    person = support.person.copy()
+    channel = support_channel_column("person")
+    child = person.index[person[channel].eq("spi")][0]
+    person.loc[child, "age"] = 15
+    candidate = impute_uk_spi_income_support(
+        replace(support, person=person), donor_path, **options
+    )
+    base = person[channel].eq("frs")
+    np.testing.assert_array_equal(
+        reference.person.loc[base, "dividend_income"],
+        candidate.person.loc[base, "dividend_income"],
+    )
+
+
+def test_stage2_pension_bridge_uses_observed_and_drawn_receipt(
+    monkeypatch, tmp_path
+) -> None:
+    support = _dead_support()
+    donor_path = tmp_path / SPI_DONOR_FILENAME
+    _write_donor(donor_path)
+    captured = {}
+    original_predict = _FakeFittedQRF.predict
+
+    def predict(self, predictors):
+        result = original_predict(self, predictors)
+        if SPI_HMRC_STATE_PENSION_INCOME_COLUMN in result:
+            result[SPI_HMRC_STATE_PENSION_INCOME_COLUMN] = np.arange(len(result)) % 2
+        if "state_pension_reported" in result:
+            captured["recipient"] = predictors["state_pension_receipt"].to_numpy()
+        return result
+
+    class CapturingQRF(_FakeQRF):
+        def fit(self, frame, predictors, targets, *, weights):
+            if "state_pension_reported" in targets:
+                captured["training"] = frame.table("person")[
+                    "state_pension_receipt"
+                ].to_numpy()
+            return super().fit(frame, predictors, targets, weights=weights)
+
+    monkeypatch.setattr(_FakeFittedQRF, "predict", predict)
+    monkeypatch.setattr(spi_income, "QRF", CapturingQRF)
+    _bypass_reviewed_donor_identity(monkeypatch)
+    result = impute_uk_spi_income_support(
+        support,
+        donor_path,
+        seed=9,
+        n_estimators=3,
+        donor_sample_size=None,
+        condition_on_state_pension_receipt=True,
+    )
+    np.testing.assert_array_equal(
+        captured["recipient"], np.arange(result.spi_prediction_rows) % 2
+    )
+    assert captured["training"].all()
+    assert (
+        result.pension_receipt_bridge["recipient_source"]
+        == "hmrc_spi_state_pension_income > 0"
+    )
+
+
 def test_spi_qrf_stages_use_typed_weights_and_restore_gross_savings(
     monkeypatch,
     tmp_path,

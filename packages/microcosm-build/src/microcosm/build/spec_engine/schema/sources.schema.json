@@ -3039,6 +3039,25 @@
       },
       "training_artifact_role": {
        "type": "string"
+      },
+      "recipient_minimum_age": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "rebase_income_to_build_period": {
+       "type": "boolean"
+      },
+      "donor_income_period": {
+       "type": "integer"
+      },
+      "income_uprating_variables": {
+       "type": "object",
+       "additionalProperties": {
+        "type": [
+         "string",
+         "null"
+        ]
+       }
       }
      },
      "required": [
@@ -6679,6 +6698,25 @@
       },
       "seed": {
        "type": "integer"
+      },
+      "recipient_minimum_age": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "rebase_income_to_build_period": {
+       "type": "boolean"
+      },
+      "donor_income_period": {
+       "type": "integer"
+      },
+      "income_uprating_variables": {
+       "type": "object",
+       "additionalProperties": {
+        "type": [
+         "string",
+         "null"
+        ]
+       }
       }
      }
     },
