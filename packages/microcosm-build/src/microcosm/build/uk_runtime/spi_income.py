@@ -61,6 +61,34 @@ SPI_DONOR_DOCUMENTATION_URL = (
 SPI_DONOR_FIT_NAME = "uk_spi_2022_23_income"
 FRS_ONLY_FIT_NAME = "uk_frs_only_spi_fill"
 DEFAULT_SPI_DONOR_SAMPLE_SIZE = 100_000
+# The youngest published SPI donor age band starts at 16 (SN 9422, Annex A).
+# The support channel clones whole households, including younger children;
+# channel membership alone therefore does not make a person a valid recipient.
+SPI_MINIMUM_RECIPIENT_AGE = 16
+SPI_DONOR_INCOME_YEAR = 2022
+# Use the pinned engine's variable-specific indices. None explicitly retains
+# nominal amounts where there is no corresponding indexed model input; it is
+# not an invented crosswalk for SPI's broader taxable-benefit concepts.
+SPI_INCOME_UPRATING_VARIABLES = {
+    "self_employment_income": "self_employment_income",
+    "savings_interest_income": "savings_interest_income",
+    "dividend_income": "dividend_income",
+    "private_pension_income": "private_pension_income",
+    "property_income": "property_income",
+    "other_investment_income": None,
+    "gift_aid": None,
+    "charitable_investment_gifts": None,
+    "hmrc_spi_pay": "employment_income_before_lsr",
+    "hmrc_spi_employment_benefits": "employment_income_before_lsr",
+    "hmrc_spi_employment_expenses": "employment_income_before_lsr",
+    "hmrc_spi_incapacity_benefit_income": None,
+    "hmrc_spi_other_social_security_income": None,
+    "hmrc_spi_taxable_termination_pay": "employment_income_before_lsr",
+    "hmrc_spi_unemployment_benefit_income": None,
+    "hmrc_spi_miscellaneous_employment_income": "employment_income_before_lsr",
+    "hmrc_spi_other_income": "miscellaneous_income",
+    "hmrc_spi_state_pension_income": None,
+}
 SPI_DONOR_SHA256 = "5ef829461060c91a2a47be59ad541d9b519fc3976d66ca80d4920f711bb96f66"
 SPI_DONOR_SIZE_BYTES = 141_323_762
 _SPI_DONOR_VERIFICATION_TOKEN = object()
@@ -237,6 +265,8 @@ class UKSPIIncomeImputationResult:
     stage2_training_rows: int
     spi_prediction_rows: int
     reviewed_absent_stage2_outputs: dict[str, str]
+    pension_receipt_bridge: Mapping[str, object] | None = None
+    income_uprating: Mapping[str, object] | None = None
 
 
 @dataclass(frozen=True)
@@ -338,6 +368,8 @@ def impute_uk_spi_income_support(
     donor_table: pd.DataFrame | None = None,
     initialize_frs_channel_columns: Mapping[str, float] | None = None,
     stage1_base_redraw_columns: Sequence[str] = (),
+    condition_on_state_pension_receipt: bool = False,
+    rebase_income_to_build_period: bool = False,
 ) -> UKSPIIncomeImputationResult:
     """Run strict SPI-income and FRS-only QRFs on rebuilt positive support."""
 
@@ -411,9 +443,14 @@ def impute_uk_spi_income_support(
         or not household.loc[spi_household, "household_weight"].gt(0.0).all()
     ):
         raise ValueError("SPI support rows must all carry positive effective mass.")
-    spi_people = person[person_channel] == SPI_SYNTHETIC_SUPPORT_CHANNEL
-    if not spi_people.any():
+    spi_channel_people = person[person_channel] == SPI_SYNTHETIC_SUPPORT_CHANNEL
+    if not spi_channel_people.any():
         raise ValueError("SPI support has no person rows to impute.")
+    _require_columns(person, ("age",), label="SPI recipient age domain")
+    _require_finite_numeric(person[["age"]], label="SPI recipient ages")
+    spi_people = spi_channel_people & person.age.ge(SPI_MINIMUM_RECIPIENT_AGE)
+    if not spi_people.any():
+        raise ValueError("SPI support has no recipients in the donor age domain.")
     base_people = person[person_channel] == BASE_FRS_SUPPORT_CHANNEL
     if not base_people.any():
         raise ValueError("SPI support has no FRS base rows.")
@@ -435,7 +472,7 @@ def impute_uk_spi_income_support(
     person = _seed_frs_hmrc_auxiliary_leaves(person, spi_people=spi_people)
 
     recipient_predictors = _person_predictors(
-        person.loc[spi_people],
+        person.loc[spi_channel_people],
         household,
         income_predictors=(),
     )
@@ -462,6 +499,21 @@ def impute_uk_spi_income_support(
         expected=SPI_INCOME_QRF_OUTPUT_COLUMNS,
         label="SPI stage-1",
     )
+    # Hold the existing RNG stream fixed: the fitted forest is also used
+    # later for the base-channel dividend redraw. Consume the legacy query
+    # shape, then discard under-age draws before any assignment. This keeps
+    # adult stage-1 draw pool and the base redraw stream identical.
+    adult_positions = (
+        person.loc[spi_channel_people, "age"].ge(SPI_MINIMUM_RECIPIENT_AGE).to_numpy()
+    )
+    stage1_draws = stage1_draws.iloc[np.flatnonzero(adult_positions)].copy()
+    income_uprating = None
+    uprating_factors = dict.fromkeys(SPI_INCOME_QRF_OUTPUT_COLUMNS, 1.0)
+    if rebase_income_to_build_period:
+        uprating_factors, income_uprating = _spi_income_uprating_factors(
+            int(build_period)
+        )
+        stage1_draws = stage1_draws.mul(pd.Series(uprating_factors), axis="columns")
     nonnegative_stage1 = [
         column
         for column in SPI_INCOME_QRF_OUTPUT_COLUMNS
@@ -508,6 +560,24 @@ def impute_uk_spi_income_support(
         household,
         income_predictors=income_predictors,
     )
+    pension_bridge = None
+    if condition_on_state_pension_receipt:
+        # A receipt indicator is a predictive bridge, not an assertion that
+        # FRS regular pension and the full taxable SPI SRP amount coincide.
+        # Without it, stage 2 can attach a second, unrelated pension regime
+        # to a stage-1 vector whose HMRC pension leaf is already determined.
+        train_receipt = person.loc[training_people, "state_pension_reported"].gt(0)
+        target_receipt = person.loc[
+            spi_people, SPI_HMRC_STATE_PENSION_INCOME_COLUMN
+        ].gt(0)
+        train_predictors["state_pension_receipt"] = train_receipt.astype(float)
+        target_predictors["state_pension_receipt"] = target_receipt.astype(float)
+        pension_bridge = {
+            "training_source": "state_pension_reported > 0",
+            "recipient_source": "hmrc_spi_state_pension_income > 0",
+            "training_positive_rows": int(train_receipt.sum()),
+            "recipient_positive_rows": int(target_receipt.sum()),
+        }
     encoded_train, encoded_target = _encode_predictor_pair(
         train_predictors,
         target_predictors,
@@ -566,7 +636,14 @@ def impute_uk_spi_income_support(
         ):
             raise ValueError("SPI stage-1 base redraw produced negative outputs.")
         for column in base_redraw_columns:
-            person.loc[base_people, column] = base_draws[column].to_numpy()
+            # This redraw also uses adult SPI donors. Preserve observed FRS
+            # child dividends, while consuming the same base query stream.
+            base_adults = (
+                person.loc[base_people, "age"].ge(SPI_MINIMUM_RECIPIENT_AGE).to_numpy()
+            )
+            person.loc[
+                base_people & person.age.ge(SPI_MINIMUM_RECIPIENT_AGE), column
+            ] = base_draws[column].to_numpy()[base_adults] * uprating_factors[column]
 
     tax_free = person.loc[spi_people, "tax_free_savings_income"].to_numpy(
         dtype=np.float64
@@ -599,7 +676,53 @@ def impute_uk_spi_income_support(
         stage2_training_rows=int(training_people.sum()),
         spi_prediction_rows=int(spi_people.sum()),
         reviewed_absent_stage2_outputs=reviewed_absent,
+        pension_receipt_bridge=pension_bridge,
+        income_uprating=income_uprating,
     )
+
+
+@cache
+def _spi_income_uprating_factors(year: int):
+    """Rebase SPI money flows before conditioning on build-year FRS incomes."""
+    from policyengine_uk import CountryTaxBenefitSystem
+
+    if year < SPI_DONOR_INCOME_YEAR:
+        raise ValueError("SPI income cannot be rebased before its source year.")
+    if set(SPI_INCOME_UPRATING_VARIABLES) != set(SPI_INCOME_QRF_OUTPUT_COLUMNS):
+        raise ValueError("Every SPI income output needs an explicit uprating rule.")
+    system = CountryTaxBenefitSystem()
+    source = system.parameters(f"{SPI_DONOR_INCOME_YEAR}-01-01")
+    target = system.parameters(f"{year}-01-01")
+    factors = {}
+    columns = {}
+    for column, variable_name in SPI_INCOME_UPRATING_VARIABLES.items():
+        path = (
+            getattr(system.variables[variable_name], "uprating", None)
+            if variable_name is not None
+            else None
+        )
+        factor = 1.0
+        if path is not None:
+            if not isinstance(path, str):
+                raise ValueError(f"Unsupported SPI uprating index for {column}.")
+            before, after = source, target
+            for part in path.split("."):
+                before, after = getattr(before, part), getattr(after, part)
+            if not np.isfinite([before, after]).all() or before <= 0 or after <= 0:
+                raise ValueError(f"SPI uprating index must be positive for {column}.")
+            factor = float(after / before)
+        factors[column] = factor
+        columns[column] = {
+            "variable": variable_name,
+            "index": path,
+            "factor": factor,
+            "basis": "model_index" if path else "held_nominal",
+        }
+    return factors, {
+        "from_period": SPI_DONOR_INCOME_YEAR,
+        "to_period": year,
+        "columns": columns,
+    }
 
 
 def _initialize_frs_channel_columns(

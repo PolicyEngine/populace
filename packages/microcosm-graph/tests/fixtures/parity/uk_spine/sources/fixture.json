@@ -1592,10 +1592,31 @@
               ]
             }
           },
+          "donor_income_period": 2022,
           "double_apply_source_weight": false,
           "employment_income_source_semantics": "PolicyEngine input = PAY + EPB + TAXTERM, matching the pinned enhanced-FRS pipeline; it is not the Table 3.6 measure",
           "fit_weight_kind": "design",
           "hmrc_employed_income_source_semantics": "Derived after each draw as max(0, PAY + EPB - EXPS) + INCPBEN + OSSBEN + TAXTERM + UBISJA + MOTHINC, using normalized leaves identically on FRS and SPI channels",
+          "income_uprating_variables": {
+            "charitable_investment_gifts": null,
+            "dividend_income": "dividend_income",
+            "gift_aid": null,
+            "hmrc_spi_employment_benefits": "employment_income_before_lsr",
+            "hmrc_spi_employment_expenses": "employment_income_before_lsr",
+            "hmrc_spi_incapacity_benefit_income": null,
+            "hmrc_spi_miscellaneous_employment_income": "employment_income_before_lsr",
+            "hmrc_spi_other_income": "miscellaneous_income",
+            "hmrc_spi_other_social_security_income": null,
+            "hmrc_spi_pay": "employment_income_before_lsr",
+            "hmrc_spi_state_pension_income": null,
+            "hmrc_spi_taxable_termination_pay": "employment_income_before_lsr",
+            "hmrc_spi_unemployment_benefit_income": null,
+            "other_investment_income": null,
+            "private_pension_income": "private_pension_income",
+            "property_income": "property_income",
+            "savings_interest_income": "savings_interest_income",
+            "self_employment_income": "self_employment_income"
+          },
           "initialize_frs_channel_columns": {
             "charitable_investment_gifts": 0,
             "gift_aid": 0
@@ -1629,6 +1650,8 @@
             "gender",
             "region"
           ],
+          "rebase_income_to_build_period": true,
+          "recipient_minimum_age": 16,
           "require_all_outputs": true,
           "require_all_predictors": true,
           "sample_size": 64,
@@ -1794,7 +1817,8 @@
             "savings_interest_income",
             "dividend_income",
             "private_pension_income",
-            "property_income"
+            "property_income",
+            "state_pension_receipt"
           ],
           "require_all_materializable_outputs": true,
           "require_all_outputs": false,
